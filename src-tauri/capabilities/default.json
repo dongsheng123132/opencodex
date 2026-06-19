@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "OpenCodex 主窗口权限",
+  "windows": ["main", "browser-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:webview:allow-create-webview-window",
+    "dialog:default",
+    "shell:allow-open"
+  ]
+}

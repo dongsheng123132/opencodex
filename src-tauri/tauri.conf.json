@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenCodex",
+  "version": "0.3.1",
+  "identifier": "org.opencodex.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OpenCodex",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "OpenCodex",
+    "category": "DeveloperTool",
+    "shortDescription": "OpenCodex — 开源本地编程工作台",
+    "longDescription": "OpenCodex：以文件夹为基础的多终端 AI 编程与管理工作台。和你自己的模型对话，内置应用内真终端、文件树、浏览器。完全本地、开源、自带模型，无任何内置 Key 或服务器依赖。",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "displayLanguageSelector": false,
+        "languages": ["SimpChinese", "English"],
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      }
+    }
+  }
+}

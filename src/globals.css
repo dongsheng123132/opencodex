@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: #0d0d0f;
+    color: #e3e4e6;
+    font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  /* 滚动条中性化 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer utilities {
+  .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+  }
+  .dot-on {
+    background: #27a644;
+  }
+  .dot-off {
+    background: #6b7280;
+  }
+  .dot-warn {
+    background: #d6a200;
+  }
+
+  /* 设置弹层输入框 */
+  .input {
+    width: 100%;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #111114;
+    color: #e3e4e6;
+    font-size: 13px;
+    outline: none;
+  }
+  .input::placeholder {
+    color: #6b7280;
+  }
+  .input:focus {
+    border-color: #5e6ad2;
+  }
+}
+
+/* 横向滚动但隐藏滚动条（终端快捷词栏用） */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/WebView2 */
+}

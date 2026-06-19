@@ -1,0 +1,40 @@
+{
+  "name": "opencodex",
+  "private": true,
+  "version": "0.3.1",
+  "description": "OpenCodex — 开源绿色的本地编程工作台：以文件夹为基础的多终端 AI 编程与管理。自带模型，无服务器、无内置 Key。",
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7",
+    "@tauri-apps/plugin-shell": "^2.3",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@xterm/xterm": "^5.5.0",
+    "lucide-react": "^1.16.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

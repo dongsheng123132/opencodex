@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+src-tauri/target/
+
+# editor / os
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# private AI-assistant config (not for distribution)
+CLAUDE.md

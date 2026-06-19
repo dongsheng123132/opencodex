@@ -1,0 +1,21 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e2030"/>
+      <stop offset="100%" stop-color="#0d0d0f"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8d9bff"/>
+      <stop offset="100%" stop-color="#5e6ad2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 圆角深色底 -->
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#bg)"/>
+  <rect x="64" y="64" width="896" height="896" rx="208" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="4"/>
+
+  <!-- 尖括号 >（渐变） -->
+  <path d="M 300 330 L 470 512 L 300 694" fill="none" stroke="url(#accent1)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 光标下划线 _（纯色，规避 resvg 多渐变引用 bug；加粗、贴近、足够大保证小图可见） -->
+  <path d="M 548 690 L 724 690" fill="none" stroke="#7f8cf0" stroke-width="80" stroke-linecap="round"/>
+</svg>
