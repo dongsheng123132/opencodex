@@ -8,6 +8,8 @@ OpenCodex 是一个 Codex 同款体验的桌面工作台：选一个项目文件
 
 完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。你填自己的 Base URL + API Key（DeepSeek / 智谱 / Kimi / Anthropic 官方 / 本地 ollama / 任意 OpenAI·Anthropic 兼容端点都行）。
 
+![OpenCodex 主界面 —— 一个文件夹里 2×2 分屏开多个终端](docs/screenshot-main.png)
+
 ## 为什么做这个
 
 Codex 这类工具，可以说是 AI 发展史上的第一辆「自动挡汽车」—— 一个全能的六边形战士，与其叫战士，不如说是一个**个人小军团**：

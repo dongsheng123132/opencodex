@@ -8,6 +8,8 @@ OpenCodex is a Codex-style desktop workbench: pick a project folder → the main
 
 Fully local, open-source, **bring-your-own-model**: ships no API keys, points at no relay/server. You fill in your own Base URL + API Key (DeepSeek / Zhipu / Kimi / Anthropic official / local ollama / any OpenAI- or Anthropic-compatible endpoint).
 
+![OpenCodex main UI — a 2×2 terminal split inside one folder](docs/screenshot-main.png)
+
 ## Why this exists
 
 Codex-class tools are arguably the **first "automatic-transmission car" in AI history** — an all-round hexagonal powerhouse. Less a single soldier, more a **one-person legion**:
