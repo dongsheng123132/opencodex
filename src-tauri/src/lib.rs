@@ -19,6 +19,7 @@
 mod agent;
 mod config;
 mod fs;
+mod git;
 mod kv;
 mod paths;
 mod proxy;
@@ -182,6 +183,10 @@ pub fn run() {
             agent::claude::claude_reset,
             fs::list_dir,
             fs::read_text_file,
+            git::git_is_repo,
+            git::git_list_branches,
+            git::git_create_worktree,
+            git::git_remove_worktree,
         ])
         .run(tauri::generate_context!())
         .expect("启动 OpenCodex 失败");

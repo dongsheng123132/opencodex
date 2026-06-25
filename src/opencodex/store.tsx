@@ -128,6 +128,8 @@ type Ctx = {
   removeTask: (id: string) => Promise<void>;
   /** 删除整个项目下的所有会话（一次性，二次确认在 UI 层）。仍不动磁盘文件夹。 */
   removeProject: (ids: string[]) => Promise<void>;
+  /** 在 repoDir 下创建 worktree（新目录 + 分支），并建对应任务加入同一项目分组。 */
+  addWorktree: (repoDir: string, branch: string, createBranch: boolean) => Promise<void>;
   /** 按给定 id 顺序重排左侧列表，并把任务型会话的顺序落盘。 */
   reorderTasks: (ids: string[]) => void;
   activate: (id: string) => void;
@@ -231,6 +233,44 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     [addSession],
   );
 
+  const addWorktree = useCallback(
+    async (repoDir: string, branch: string, createBranch: boolean) => {
+      const newPath = await invoke<string>("git_create_worktree", {
+        repoRoot: repoDir,
+        branch,
+        createBranch,
+      });
+      const now = Date.now();
+      const proj = normDir(repoDir); // 和主仓库任务同一项目分组
+      const id = `sess-${taskIdFromDir(newPath)}-${++seq.current}`;
+      const task: Task = {
+        id,
+        name: branch,
+        dir: newPath,
+        status: "idle",
+        source: "manual",
+        assignee: null,
+        external_ref: null,
+        last_opened_at: now,
+        created_at: now,
+        kind: "task",
+        project: proj,
+        worktree_repo: repoDir,
+        worktree_branch: branch,
+      };
+      try {
+        const saved = await invoke<Task>("upsert_task", { task });
+        dispatch({
+          type: "upsert",
+          task: { ...saved, project: proj, kind: "task", worktree_repo: repoDir, worktree_branch: branch },
+        });
+      } catch {
+        dispatch({ type: "upsert", task });
+      }
+    },
+    [],
+  );
+
   const removeTask = useCallback(async (id: string) => {
     dispatch({ type: "remove", id });
     await invoke("remove_task", { id }).catch(() => {});
@@ -266,6 +306,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         removeTask,
         removeProject,
         reorderTasks,
+        addWorktree,
         activate,
         setRight,
         toggleRight,

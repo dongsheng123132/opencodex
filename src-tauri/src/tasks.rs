@@ -53,6 +53,12 @@ pub struct Task {
     /// 由 `reorder_tasks` 整体赋值（1-based）。新建会话保持 0 → 自动冒到顶部。
     #[serde(default)]
     pub order: i64,
+    /// worktree：此任务关联的主仓库路径（None = 普通任务，Some = worktree 分支任务）。
+    #[serde(default)]
+    pub worktree_repo: Option<String>,
+    /// worktree：分支名（用于左侧列表展示，None = 非 worktree 任务）。
+    #[serde(default)]
+    pub worktree_branch: Option<String>,
 }
 
 fn default_status() -> String {

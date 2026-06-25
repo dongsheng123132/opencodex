@@ -34,6 +34,9 @@ export interface Task {
   project?: string | null;
   // —— Phase 9：手动排序权重（0=未排/置顶，>0 显式顺序）。后端 reorder_tasks 落盘 ——
   order?: number;
+  // —— worktree：此任务是 git worktree 时设置。worktree_repo = 主仓库路径；与主任务同一 project 分组 ——
+  worktree_repo?: string | null;
+  worktree_branch?: string | null;
 }
 
 /** 规范化目录路径（去尾斜杠 + 小写），作项目分组键。 */
