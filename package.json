@@ -1,7 +1,7 @@
 {
   "name": "opencodex",
   "private": true,
-  "version": "0.3.3",
+  "version": "0.3.5",
   "description": "OpenCodex — 开源绿色的本地编程工作台：以文件夹为基础的多终端 AI 编程与管理。自带模型，无服务器、无内置 Key。",
   "type": "module",
   "pnpm": {

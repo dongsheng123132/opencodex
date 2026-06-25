@@ -171,7 +171,25 @@ export function SessionList() {
             const sample = tasks[0];
             const projName = projKey ? dirBasename(sample.dir) : "未绑定文件夹";
             return (
-              <div key={projKey || "_loose"} className="mb-1.5">
+              <div
+                key={projKey || "_loose"}
+                className="mb-1.5"
+                onDragOver={(e) => {
+                  if (dragRef.current?.kind === "group" && dragRef.current.key !== projKey) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setOverGroup(projKey);
+                  }
+                }}
+                onDrop={(e) => {
+                  const d = dragRef.current;
+                  if (d?.kind === "group" && d.key !== projKey) {
+                    e.preventDefault();
+                    moveGroup(d.key, projKey);
+                    clearDrag();
+                  }
+                }}
+              >
                 {/* 项目组头：拖拽把手重排顺序；垃圾桶整组删除 */}
                 <div
                   draggable
@@ -181,19 +199,6 @@ export function SessionList() {
                     e.dataTransfer.setData("text/plain", projKey);
                   }}
                   onDragEnd={clearDrag}
-                  onDragOver={(e) => {
-                    if (dragRef.current?.kind === "group" && dragRef.current.key !== projKey) {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                      setOverGroup(projKey);
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const d = dragRef.current;
-                    if (d?.kind === "group") moveGroup(d.key, projKey);
-                    clearDrag();
-                  }}
                   className={
                     "group flex items-center gap-1 px-2.5 py-1 text-[11px] text-ink-3 select-none cursor-grab active:cursor-grabbing border-t " +
                     (overGroup === projKey ? "border-accent" : "border-transparent")
@@ -282,10 +287,11 @@ export function SessionList() {
                       }}
                       onDrop={(e) => {
                         const d = dragRef.current;
-                        if (d?.kind === "session" && d.group === projKey) {
-                          e.preventDefault();
-                          moveSession(d.key, t.id, projKey);
-                        }
+                        // 项目组拖拽要继续冒泡给外层组容器处理，不能在会话行提前清空。
+                        if (d?.kind !== "session") return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (d.group === projKey) moveSession(d.key, t.id, projKey);
                         clearDrag();
                       }}
                       className={
