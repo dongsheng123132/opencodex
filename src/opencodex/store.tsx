@@ -20,6 +20,8 @@ type Action =
   | { type: "load"; tasks: Task[] }
   | { type: "upsert"; task: Task }
   | { type: "remove"; id: string }
+  | { type: "removeMany"; ids: string[] }
+  | { type: "reorder"; ids: string[] }
   | { type: "activate"; id: string }
   | { type: "setRight"; id: string; kind: RightKind }
   | { type: "toggleRight"; id: string; open?: boolean }
@@ -54,10 +56,14 @@ function reducer(state: State, a: Action): State {
       return { ...state, tasks: a.tasks, panels, loaded: true };
     }
     case "upsert": {
-      const rest = state.tasks.filter((t) => t.id !== a.task.id);
+      // 已存在 → 原位替换（不打乱用户拖好的手动顺序）；新会话 → 置顶。
+      const exists = state.tasks.some((t) => t.id === a.task.id);
+      const tasks = exists
+        ? state.tasks.map((t) => (t.id === a.task.id ? a.task : t))
+        : [a.task, ...state.tasks];
       const panels = { ...state.panels };
       if (!panels[a.task.id]) panels[a.task.id] = layoutFor(a.task);
-      return { ...state, tasks: [a.task, ...rest], activeId: a.task.id, panels };
+      return { ...state, tasks, activeId: a.task.id, panels };
     }
     case "remove": {
       const tasks = state.tasks.filter((t) => t.id !== a.id);
@@ -65,6 +71,29 @@ function reducer(state: State, a: Action): State {
       delete panels[a.id];
       const activeId = state.activeId === a.id ? (tasks[0]?.id ?? null) : state.activeId;
       return { ...state, tasks, panels, activeId };
+    }
+    case "removeMany": {
+      const kill = new Set(a.ids);
+      const tasks = state.tasks.filter((t) => !kill.has(t.id));
+      const panels = { ...state.panels };
+      for (const id of a.ids) delete panels[id];
+      const activeId =
+        state.activeId && kill.has(state.activeId) ? (tasks[0]?.id ?? null) : state.activeId;
+      return { ...state, tasks, panels, activeId };
+    }
+    case "reorder": {
+      // 按传入 id 顺序重排；漏掉的（防御）补到末尾，保证不丢会话。
+      const byId = new Map(state.tasks.map((t) => [t.id, t]));
+      const tasks: Task[] = [];
+      for (const id of a.ids) {
+        const t = byId.get(id);
+        if (t) {
+          tasks.push(t);
+          byId.delete(id);
+        }
+      }
+      for (const t of byId.values()) tasks.push(t);
+      return { ...state, tasks };
     }
     case "activate":
       return { ...state, activeId: a.id };
@@ -97,6 +126,10 @@ type Ctx = {
   /** 启动一个工具型会话（无项目文件夹，从「我的 AI」运行面板点启动）。 */
   addToolSession: (tool: string, name: string, startupCmd: string, dir?: string) => void;
   removeTask: (id: string) => Promise<void>;
+  /** 删除整个项目下的所有会话（一次性，二次确认在 UI 层）。仍不动磁盘文件夹。 */
+  removeProject: (ids: string[]) => Promise<void>;
+  /** 按给定 id 顺序重排左侧列表，并把任务型会话的顺序落盘。 */
+  reorderTasks: (ids: string[]) => void;
   activate: (id: string) => void;
   setRight: (id: string, kind: RightKind) => void;
   toggleRight: (id: string, open?: boolean) => void;
@@ -203,6 +236,19 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     await invoke("remove_task", { id }).catch(() => {});
   }, []);
 
+  // 整组删除：先一次性更新内存（避免逐条重渲染），再逐条落盘删除。
+  const removeProject = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    dispatch({ type: "removeMany", ids });
+    for (const id of ids) await invoke("remove_task", { id }).catch(() => {});
+  }, []);
+
+  // 重排：先动内存让 UI 立刻跟手，再把 id 顺序丢给后端落盘（工具会话 id 后端会自动忽略）。
+  const reorderTasks = useCallback((ids: string[]) => {
+    dispatch({ type: "reorder", ids });
+    void invoke("reorder_tasks", { ids }).catch(() => {});
+  }, []);
+
   const activate = useCallback((id: string) => dispatch({ type: "activate", id }), []);
   const setRight = useCallback((id: string, kind: RightKind) => dispatch({ type: "setRight", id, kind }), []);
   const toggleRight = useCallback((id: string, open?: boolean) => dispatch({ type: "toggleRight", id, open }), []);
@@ -218,6 +264,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         addSession,
         addToolSession,
         removeTask,
+        removeProject,
+        reorderTasks,
         activate,
         setRight,
         toggleRight,

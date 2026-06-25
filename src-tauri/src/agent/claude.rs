@@ -22,7 +22,9 @@ use std::sync::{Mutex, OnceLock};
 use serde_json::Value;
 use tauri::ipc::Channel;
 
+use crate::config;
 use crate::paths::{path_prefix, resolve_exe};
+use crate::proxy;
 
 use super::protocol::ProtocolState;
 
@@ -54,13 +56,8 @@ fn base_command(program: &str) -> std::process::Command {
 /// 前置便携工具目录（与 term / config 同口径），让 `claude` 可解析。
 fn inject_path(c: &mut std::process::Command) {
     c.env("PATH", path_prefix());
-    // 清代理：避免客户机 clash 式代理拦死本地子进程
-    for v in [
-        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
-        "http_proxy", "https_proxy", "all_proxy",
-    ] {
-        c.env_remove(v);
-    }
+    config::apply_model_env_to_command(c);
+    proxy::apply_to_command(c);
 }
 
 /// 给一个任务发一条消息，跑一轮 claude，结构化事件经 `on_event` Channel 流回前端。

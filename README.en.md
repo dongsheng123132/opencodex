@@ -51,7 +51,7 @@ In one line: take Codex's most core, most underrated ability — the AI-facing m
 - **Drag to drop paths**: drag a file / image / folder into the terminal → its real path is typed into the command line (handy for showing images to Claude Code, or feeding file paths).
 - **Layout memory + adjustable font**: split layout restores on relaunch; font size via `Ctrl ±` or toolbar buttons, persisted.
 - **Slide-out panels**: from the top bar, slide out a file tree / browser; resizable, dismissable.
-- **Bring-your-own-model**: enter Base URL / API Key / model in Model Settings; written to the `env` block of `~/.claude/settings.json`, applied hot.
+- **Bring-your-own-model**: enter Base URL / API Key / model in Model Settings; saved only to `~/.opencodex/config.json` and temporarily injected into terminals and AI child processes launched by OpenCodex. It does not modify Claude Code login state, global settings, or system environment variables.
 - **Portable exe**: ~4.7 MB, size-first release profile (`opt-level=z` + LTO + strip), single executable, reuses the system WebView.
 
 ## Stack
@@ -76,14 +76,14 @@ cargo run -- --term-test "node --version"
 ## Usage
 
 1. Launch OpenCodex.
-2. Top-right "Model Settings" → fill your Base URL / API Key / model (presets available).
+2. Top-right "Model Settings" → fill your Base URL / API Key / model (presets available). These settings only affect terminals and AI child processes launched by OpenCodex.
 3. The terminal needs the `claude` CLI — if missing, run `npm i -g @anthropic-ai/claude-code` in a terminal pane.
 4. "New project" → pick a folder → start working. Split for more terminals; slide out files / browser when needed.
 
 ## Data locations
 
 - Session list: `~/.opencodex/tasks.json`
-- Model config: `~/.opencodex/config.json` + the `env` block of `~/.claude/settings.json`
+- Model config: `~/.opencodex/config.json` (never writes Claude Code global settings or system environment variables)
 - Terminal layout & font / misc state: `~/.opencodex/kv.json`
 - Optional portable runtime: `~/.opencodex/runtime/{node,python}` (unzip here to be auto-discovered and added to PATH)
 

@@ -5,18 +5,14 @@
 //!   - API Key
 //!   - 模型名 / 小模型名
 //!
-//! 写入两处：
-//!   1. `~/.opencodex/config.json` —— 本应用自己的配置记录（前端回显用）
-//!   2. `~/.claude/settings.json` 的 `env` 块 —— 让 `claude` CLI（对话面板 claude_send 调它）
-//!      用上用户选的端点。只动我们管理的 5 个 env 键，其余配置不碰（cc-switch 式）。
-//!
-//! 这样对话面板（agent/claude.rs 跑 `claude -p`）就能用用户自己的模型，真正开源、无锁定。
+//! 只写 `~/.opencodex/config.json`，不改 Claude Code 或系统全局配置。
+//! OpenCodex 启动终端 / AI 子进程时再把这些值作为 env 临时注入。
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::paths::{home_dir, tool_installed};
+use crate::paths::tool_installed;
 
 /// 用户填的模型配置。空字段表示「不设置/官方默认」。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -44,16 +40,12 @@ pub struct ConfigStatus {
     pub claude_installed: bool,
     /// codex CLI 是否能找到
     pub codex_installed: bool,
-    /// 是否已配好可对话（有 base_url + api_key，或已装 claude 并自带配置）
+    /// 是否已配好 OpenCodex 自己的模型环境（不读取 Claude Code 全局配置）
     pub ready: bool,
 }
 
 fn config_path() -> PathBuf {
     crate::paths::app_home().join("config.json")
-}
-
-fn claude_settings_path() -> PathBuf {
-    PathBuf::from(home_dir()).join(".claude").join("settings.json")
 }
 
 /// 读本应用配置（不存在返回空）。
@@ -80,53 +72,32 @@ fn mask_key(k: &str) -> String {
     }
 }
 
-/// 我们在 `~/.claude/settings.json` `env` 里管理的键 —— 只动这几个，其余不碰。
-const MANAGED_KEYS: &[&str] = &[
-    "ANTHROPIC_BASE_URL",
-    "ANTHROPIC_AUTH_TOKEN",
-    "ANTHROPIC_MODEL",
-    "ANTHROPIC_SMALL_FAST_MODEL",
-];
-
-/// 把用户配置写进 `~/.claude/settings.json` 的 env 块（cc-switch 式：只增删我们的键）。
-fn apply_to_claude(cfg: &ModelConfig) -> Result<(), String> {
-    let path = claude_settings_path();
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| format!("创建 .claude 目录失败: {e}"))?;
-    }
-    // 读现有 settings.json（保留用户其它配置），无则空对象
-    let mut root: serde_json::Value = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-    if !root.is_object() {
-        root = serde_json::json!({});
-    }
-    let obj = root.as_object_mut().unwrap();
-    let env = obj
-        .entry("env".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    if !env.is_object() {
-        *env = serde_json::json!({});
-    }
-    let env = env.as_object_mut().unwrap();
-
-    // 先清掉我们管理的键，再按非空写回（空 = 不设置，回落官方默认）
-    for k in MANAGED_KEYS {
-        env.remove(*k);
-    }
-    let put = |env: &mut serde_json::Map<String, serde_json::Value>, k: &str, v: &str| {
-        if !v.trim().is_empty() {
-            env.insert(k.to_string(), serde_json::Value::String(v.trim().to_string()));
+pub fn apply_model_env_to_command(cmd: &mut std::process::Command) {
+    let cfg = read_config();
+    let mut put = |key: &str, value: &str| {
+        let value = value.trim();
+        if !value.is_empty() {
+            cmd.env(key, value);
         }
     };
-    put(env, "ANTHROPIC_BASE_URL", &cfg.base_url);
-    put(env, "ANTHROPIC_AUTH_TOKEN", &cfg.api_key);
-    put(env, "ANTHROPIC_MODEL", &cfg.model);
-    put(env, "ANTHROPIC_SMALL_FAST_MODEL", &cfg.small_model);
+    put("ANTHROPIC_BASE_URL", &cfg.base_url);
+    put("ANTHROPIC_AUTH_TOKEN", &cfg.api_key);
+    put("ANTHROPIC_MODEL", &cfg.model);
+    put("ANTHROPIC_SMALL_FAST_MODEL", &cfg.small_model);
+}
 
-    let s = serde_json::to_string_pretty(&root).map_err(|e| format!("序列化 settings 失败: {e}"))?;
-    std::fs::write(&path, s).map_err(|e| format!("写入 settings.json 失败: {e}"))
+pub fn apply_model_env_to_pty(builder: &mut portable_pty::CommandBuilder) {
+    let cfg = read_config();
+    let mut put = |key: &str, value: &str| {
+        let value = value.trim();
+        if !value.is_empty() {
+            builder.env(key, value);
+        }
+    };
+    put("ANTHROPIC_BASE_URL", &cfg.base_url);
+    put("ANTHROPIC_AUTH_TOKEN", &cfg.api_key);
+    put("ANTHROPIC_MODEL", &cfg.model);
+    put("ANTHROPIC_SMALL_FAST_MODEL", &cfg.small_model);
 }
 
 /// 取当前配置 + 环境体检（前端启动/进设置时调）。api_key 已脱敏。
@@ -146,22 +117,12 @@ pub fn get_config() -> ConfigStatus {
         config: masked,
         claude_installed,
         codex_installed,
-        // 可对话：装了 claude 且（配了自定义端点 或 用户已自行配好官方）
-        ready: claude_installed && (configured || has_claude_env()),
+        // 只代表 OpenCodex 自己保存的模型环境是否完整；不读取/推断 Claude Code 全局配置。
+        ready: configured,
     }
 }
 
-/// `~/.claude/settings.json` 里是否已有 base_url（用户自己配过官方/其它，不经本应用）。
-fn has_claude_env() -> bool {
-    std::fs::read_to_string(claude_settings_path())
-        .ok()
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .and_then(|v| v.get("env").cloned())
-        .map(|env| env.get("ANTHROPIC_BASE_URL").is_some() || env.get("ANTHROPIC_AUTH_TOKEN").is_some())
-        .unwrap_or(false)
-}
-
-/// 保存用户配置：写本应用 config.json + 应用到 `~/.claude/settings.json`。
+/// 保存用户配置：只写本应用 config.json，不改 Claude Code 或系统全局配置。
 /// `api_key` 传脱敏占位（含 `…` 或全 `•`）时表示「不改 key」，沿用已存的。
 #[tauri::command]
 pub fn set_config(config: ModelConfig) -> Result<ConfigStatus, String> {
@@ -176,6 +137,5 @@ pub fn set_config(config: ModelConfig) -> Result<ConfigStatus, String> {
     let s = serde_json::to_string_pretty(&cfg).map_err(|e| format!("序列化配置失败: {e}"))?;
     std::fs::write(config_path(), s).map_err(|e| format!("写入 config.json 失败: {e}"))?;
 
-    apply_to_claude(&cfg)?;
     Ok(get_config())
 }

@@ -32,6 +32,8 @@ export interface Task {
   kind?: "task" | "tool"; // 默认 task
   // —— Phase 8：项目分组键（=规范化 dir）。同一文件夹可开多个会话，左侧按 project 分组 ——
   project?: string | null;
+  // —— Phase 9：手动排序权重（0=未排/置顶，>0 显式顺序）。后端 reorder_tasks 落盘 ——
+  order?: number;
 }
 
 /** 规范化目录路径（去尾斜杠 + 小写），作项目分组键。 */

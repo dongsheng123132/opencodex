@@ -49,6 +49,10 @@ pub struct Task {
     /// Phase 7：task | tool（default task）
     #[serde(default = "default_kind")]
     pub kind: String,
+    /// 手动排序权重：0 = 未排（按最近打开置顶，兼容旧数据）；>0 = 显式顺序，越小越靠前。
+    /// 由 `reorder_tasks` 整体赋值（1-based）。新建会话保持 0 → 自动冒到顶部。
+    #[serde(default)]
+    pub order: i64,
 }
 
 fn default_status() -> String {
@@ -95,11 +99,16 @@ fn write_file(f: &TasksFile) -> Result<(), String> {
     std::fs::write(tasks_path(), s).map_err(|e| format!("写入 tasks.json 失败: {e}"))
 }
 
-/// 列出全部任务（按 last_opened_at 倒序，最近的在前）。
+/// 列出全部任务。手动排序优先：`order > 0` 按升序（用户拖出来的顺序）；
+/// `order == 0`（未排 / 新建）视为置顶，组内再按最近打开倒序——保持「新会话冒顶」的老手感。
 #[tauri::command]
 pub fn list_tasks() -> Vec<Task> {
     let mut f = read_file();
-    f.tasks.sort_by(|a, b| b.last_opened_at.cmp(&a.last_opened_at));
+    f.tasks.sort_by(|a, b| {
+        let ka = if a.order == 0 { i64::MIN } else { a.order };
+        let kb = if b.order == 0 { i64::MIN } else { b.order };
+        ka.cmp(&kb).then(b.last_opened_at.cmp(&a.last_opened_at))
+    });
     f.tasks
 }
 
@@ -115,12 +124,14 @@ pub fn upsert_task(mut task: Task) -> Result<Task, String> {
 
     let mut f = read_file();
     if let Some(existing) = f.tasks.iter_mut().find(|t| t.id == task.id) {
-        // 保留原 created_at；其余字段以传入为准
+        // 保留原 created_at 与手动排序权重 order；其余字段以传入为准。
+        // （前端 Task 不一定回传 order，重新 upsert 不能把用户拖好的顺序冲掉。）
         task.created_at = if existing.created_at > 0 {
             existing.created_at
         } else {
             now
         };
+        task.order = existing.order;
         *existing = task.clone();
     } else {
         if task.created_at == 0 {
@@ -138,5 +149,19 @@ pub fn upsert_task(mut task: Task) -> Result<Task, String> {
 pub fn remove_task(id: String) -> Result<(), String> {
     let mut f = read_file();
     f.tasks.retain(|t| t.id != id);
+    write_file(&f)
+}
+
+/// 重排任务顺序。传入「全部条目 id 的目标顺序」，按位置给持久化任务赋 `order`（1-based）。
+/// 运行时工具会话不落盘，传进来的此类 id 找不到、自动跳过——只持久化真正的任务型会话顺序。
+/// 不在 `ids` 里的任务保持原 order（理论上不会发生）。
+#[tauri::command]
+pub fn reorder_tasks(ids: Vec<String>) -> Result<(), String> {
+    let mut f = read_file();
+    for (i, id) in ids.iter().enumerate() {
+        if let Some(t) = f.tasks.iter_mut().find(|t| &t.id == id) {
+            t.order = (i as i64) + 1;
+        }
+    }
     write_file(&f)
 }

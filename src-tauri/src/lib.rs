@@ -8,7 +8,7 @@
 //!
 //! 模块分工：
 //! - `paths`   子进程 PATH 注入 + 便携运行时定位（唯一真相源）
-//! - `config`  自带模型配置（写 ~/.opencodex + ~/.claude/settings.json）
+//! - `config`  自带模型配置（只写 ~/.opencodex，子进程临时注入 env）
 //! - `term`    应用内 PTY 终端（portable_pty）
 //! - `tasks`   会话/任务持久化（~/.opencodex/tasks.json）
 //! - `agent`   结构化 claude 对话流（stream-json → 卡片）
@@ -21,6 +21,7 @@ mod config;
 mod fs;
 mod kv;
 mod paths;
+mod proxy;
 mod quick;
 mod tasks;
 mod term;
@@ -171,6 +172,7 @@ pub fn run() {
             tasks::list_tasks,
             tasks::upsert_task,
             tasks::remove_task,
+            tasks::reorder_tasks,
             quick::get_quick_cmds,
             quick::set_quick_cmds,
             kv::kv_get,

@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useMemo, useRef, useState } from "react";
-import { FolderPlus, MessageSquarePlus, Plus, Puzzle, X } from "lucide-react";
+import { FolderPlus, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
 import { dirBasename, normDir } from "./types";
@@ -24,7 +24,8 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
 ];
 
 export function SessionList() {
-  const { state, addTask, addSession, removeTask, activate } = useWorkbench();
+  const { state, addTask, addSession, removeTask, removeProject, reorderTasks, activate } =
+    useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
 
   // 关闭会话防误触：第一次点 × 进入待确认（按钮变红），2 秒内再点一次才真删，
@@ -42,6 +43,32 @@ export function SessionList() {
       if (delTimer.current) clearTimeout(delTimer.current);
       delTimer.current = setTimeout(() => setConfirmDel(null), 2000);
     }
+  };
+
+  // 整组删除：和单会话删除同样的「点两次确认」防误触。删的仍只是会话记录，不动磁盘文件夹。
+  const [confirmDelGroup, setConfirmDelGroup] = useState<string | null>(null);
+  const delGroupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onDelGroupClick = (projKey: string, ids: string[]) => {
+    if (confirmDelGroup === projKey) {
+      if (delGroupTimer.current) clearTimeout(delGroupTimer.current);
+      setConfirmDelGroup(null);
+      void removeProject(ids);
+    } else {
+      setConfirmDelGroup(projKey);
+      if (delGroupTimer.current) clearTimeout(delGroupTimer.current);
+      delGroupTimer.current = setTimeout(() => setConfirmDelGroup(null), 2000);
+    }
+  };
+
+  // 拖拽排序：dragRef 存当前拖的是「项目组」还是「组内会话」；over* 仅作落点高亮。
+  // 用原生 HTML5 拖拽，不引第三方库（守体积红线）。
+  const dragRef = useRef<{ kind: "group" | "session"; key: string; group?: string } | null>(null);
+  const [overGroup, setOverGroup] = useState<string | null>(null);
+  const [overSession, setOverSession] = useState<string | null>(null);
+  const clearDrag = () => {
+    dragRef.current = null;
+    setOverGroup(null);
+    setOverSession(null);
   };
 
   const pickFolder = async () => {
@@ -71,6 +98,37 @@ export function SessionList() {
     }
     return Array.from(m.entries());
   }, [state.tasks]);
+
+  // 把 from 组整体挪到 to 组之前，重建扁平 id 顺序后落盘。
+  const moveGroup = (fromKey: string, toKey: string) => {
+    if (fromKey === toKey) return;
+    const keys = groups.map(([k]) => k).filter((k) => k !== fromKey);
+    const at = keys.indexOf(toKey);
+    if (at < 0) return;
+    keys.splice(at, 0, fromKey);
+    const byKey = new Map(groups);
+    const ids: string[] = [];
+    for (const k of keys) for (const t of byKey.get(k) ?? []) ids.push(t.id);
+    reorderTasks(ids);
+  };
+
+  // 组内把 from 会话挪到 to 会话之前；其它组顺序原样保留。
+  const moveSession = (fromId: string, toId: string, projKey: string) => {
+    if (fromId === toId) return;
+    const ids: string[] = [];
+    for (const [k, tasks] of groups) {
+      if (k !== projKey) {
+        for (const t of tasks) ids.push(t.id);
+        continue;
+      }
+      const moved = tasks.find((t) => t.id === fromId);
+      const arr = tasks.filter((t) => t.id !== fromId);
+      const at = arr.findIndex((t) => t.id === toId);
+      if (moved) arr.splice(at < 0 ? arr.length : at, 0, moved);
+      for (const t of arr) ids.push(t.id);
+    }
+    reorderTasks(ids);
+  };
 
   return (
     <aside className="w-[230px] shrink-0 flex flex-col border-r border-white/[0.06] bg-bg-1 min-h-0">
@@ -114,11 +172,62 @@ export function SessionList() {
             const projName = projKey ? dirBasename(sample.dir) : "未绑定文件夹";
             return (
               <div key={projKey || "_loose"} className="mb-1.5">
-                {/* 项目组头 */}
-                <div className="group flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-ink-3">
+                {/* 项目组头：拖拽把手重排顺序；垃圾桶整组删除 */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    dragRef.current = { kind: "group", key: projKey };
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", projKey);
+                  }}
+                  onDragEnd={clearDrag}
+                  onDragOver={(e) => {
+                    if (dragRef.current?.kind === "group" && dragRef.current.key !== projKey) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setOverGroup(projKey);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const d = dragRef.current;
+                    if (d?.kind === "group") moveGroup(d.key, projKey);
+                    clearDrag();
+                  }}
+                  className={
+                    "group flex items-center gap-1 px-2.5 py-1 text-[11px] text-ink-3 select-none cursor-grab active:cursor-grabbing border-t " +
+                    (overGroup === projKey ? "border-accent" : "border-transparent")
+                  }
+                >
+                  <GripVertical
+                    size={11}
+                    className="shrink-0 -ml-1 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
                   <span className="flex-1 min-w-0 truncate font-medium" title={sample.dir}>
                     {projName}
                   </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelGroupClick(
+                        projKey,
+                        tasks.map((t) => t.id),
+                      );
+                    }}
+                    className={
+                      "inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all " +
+                      (confirmDelGroup === projKey
+                        ? "opacity-100 bg-danger-500/90 text-white"
+                        : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
+                    }
+                    title={
+                      confirmDelGroup === projKey
+                        ? "再点一次：删除该项目下全部会话（不会删除磁盘文件夹）"
+                        : "删除整个项目（移除其下所有会话，不动磁盘文件夹）"
+                    }
+                  >
+                    <Trash2 size={12} />
+                  </button>
                   {projKey && (
                     <div className="relative">
                       <button
@@ -154,10 +263,35 @@ export function SessionList() {
                   return (
                     <div
                       key={t.id}
+                      draggable
                       onClick={() => activate(t.id)}
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        dragRef.current = { kind: "session", key: t.id, group: projKey };
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", t.id);
+                      }}
+                      onDragEnd={clearDrag}
+                      onDragOver={(e) => {
+                        const d = dragRef.current;
+                        if (d?.kind === "session" && d.group === projKey && d.key !== t.id) {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          setOverSession(t.id);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        const d = dragRef.current;
+                        if (d?.kind === "session" && d.group === projKey) {
+                          e.preventDefault();
+                          moveSession(d.key, t.id, projKey);
+                        }
+                        clearDrag();
+                      }}
                       className={
-                        "group flex items-center gap-2 mx-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer border-l-2 " +
-                        (on ? "bg-accent/[0.10] border-accent" : "border-transparent hover:bg-white/[0.03]")
+                        "group flex items-center gap-2 mx-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
+                        (overSession === t.id ? "border-t-accent " : "border-t-transparent ") +
+                        (on ? "bg-accent/[0.10] border-l-accent" : "border-l-transparent hover:bg-white/[0.03]")
                       }
                       title={t.dir}
                     >

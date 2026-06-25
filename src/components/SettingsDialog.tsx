@@ -1,15 +1,15 @@
 /**
  * 模型设置弹层 —— 自带模型（Bring Your Own Model）。
  *
- * 用户填自己的 Base URL / API Key / 模型名，写进 ~/.claude/settings.json 的 env 块，
- * 对话面板（claude_send 跑 `claude -p`）就用上这个端点。完全本地，不连任何服务器。
+ * 用户填自己的 Base URL / API Key / 模型名，只保存到 ~/.opencodex/config.json。
+ * OpenCodex 启动的终端与 AI 子进程会临时注入这些 env；不改 Claude Code 全局配置。
  *
  * 兼容任何 Anthropic 风格端点：官方、DeepSeek 的 /anthropic 网关、自建中转、本地代理等。
  */
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X, Save, KeyRound, ExternalLink } from "lucide-react";
+import { X, Save, KeyRound } from "lucide-react";
 
 type ModelConfig = {
   base_url: string;
@@ -149,7 +149,7 @@ export function SettingsDialog({
             />
           </Field>
 
-          <Field label="API Key" hint="只存本地 ~/.claude/settings.json，不上传">
+          <Field label="API Key" hint="只存本地 ~/.opencodex/config.json，不上传">
             <input
               value={form.api_key}
               onChange={set("api_key")}
@@ -167,9 +167,8 @@ export function SettingsDialog({
             </Field>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-ink-4">
-            <ExternalLink size={12} />
-            配置写入 <code className="font-mono">~/.claude/settings.json</code> 的 env 块，可热生效。
+          <div className="text-[11px] text-ink-4 leading-relaxed">
+            仅保存到 <code className="font-mono">~/.opencodex/config.json</code>，只对 OpenCodex 启动的终端与 AI 子进程临时生效。
           </div>
         </div>
 
