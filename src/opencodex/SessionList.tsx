@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -171,11 +171,89 @@ export function SessionList() {
     reorderTasks(ids);
   };
 
+  // 会话栏宽度 + 折叠：本地持久化（不进 tasks.json，纯视图偏好）。拖右边缘调宽（180~460px），
+  // 双击边缘或点收起按钮 = 折叠成窄条，把地方全让给右侧终端；再点展开恢复原宽。
+  const MIN_W = 180, MAX_W = 460;
+  const [width, setWidth] = useState<number>(() => {
+    const v = parseInt(localStorage.getItem("opencodex.sidebar.width") || "", 10);
+    return v >= MIN_W && v <= MAX_W ? v : 230;
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => localStorage.getItem("opencodex.sidebar.collapsed") === "1",
+  );
+  const widthRef = useRef(width);
+  widthRef.current = width;
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const n = !c;
+      try { localStorage.setItem("opencodex.sidebar.collapsed", n ? "1" : "0"); } catch { /* ignore */ }
+      return n;
+    });
+  // 右边缘拖拽调宽：pointer 事件（不是 HTML5 draggable，和会话/项目排序拖拽互不干扰）
+  const beginResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = widthRef.current;
+    const move = (ev: PointerEvent) => {
+      setWidth(Math.min(MAX_W, Math.max(MIN_W, startW + (ev.clientX - startX))));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem("opencodex.sidebar.width", String(widthRef.current)); } catch { /* ignore */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  // 折叠态：窄条 rail —— 只留展开 + 新建对话 + 新建项目三个图标，把空间全让给终端
+  if (collapsed) {
+    return (
+      <aside className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06] bg-bg-1 min-h-0">
+        <button
+          onClick={toggleCollapsed}
+          title="展开会话栏"
+          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+        >
+          <ChevronsRight size={16} />
+        </button>
+        <button
+          onClick={newChat}
+          title="新建对话"
+          className="w-8 h-8 grid place-items-center rounded text-accent-400 hover:bg-accent/[0.16]"
+        >
+          <MessageSquarePlus size={16} />
+        </button>
+        <button
+          onClick={pickFolder}
+          title="新建项目（选文件夹）"
+          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+        >
+          <FolderPlus size={15} />
+        </button>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="w-[230px] shrink-0 flex flex-col border-r border-white/[0.06] bg-bg-1 min-h-0">
-      {/* 顶部品牌条 */}
-      <div className="px-3 pt-3 pb-1 shrink-0 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">
-        会话
+    <aside
+      style={{ width }}
+      className="relative shrink-0 flex flex-col border-r border-white/[0.06] bg-bg-1 min-h-0"
+    >
+      {/* 顶部品牌条 + 收起按钮 */}
+      <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
+        <span className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">会话</span>
+        <button
+          onClick={toggleCollapsed}
+          title="收起会话栏（把地方让给终端）"
+          className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
+        >
+          <ChevronsLeft size={14} />
+        </button>
       </div>
 
       {/* 新建对话（主）+ 新建项目（次）—— Codex 式入口 */}
@@ -461,6 +539,14 @@ export function SessionList() {
           v{__APP_VERSION__}
         </span>
       </div>
+
+      {/* 右边缘拖拽条：拖动调宽，双击收起。骑在右边框上（往右探出一半便于抓取） */}
+      <div
+        onPointerDown={beginResize}
+        onDoubleClick={toggleCollapsed}
+        title="拖动调整会话栏宽度 · 双击收起"
+        className="absolute top-0 right-0 bottom-0 w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-accent/50 transition-colors"
+      />
     </aside>
   );
 }
