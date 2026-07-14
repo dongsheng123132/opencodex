@@ -27,6 +27,18 @@ export const TERM_THEME = {
   brightWhite: "#f7f8f8",
 };
 
+// 软重置序列 —— 把终端各种「上报/屏幕」私有模式打回默认。专治 claude/codex 等 TUI 崩溃/被杀后
+// 没机会清理留下的卡死状态:鼠标坐标乱码、备用屏花屏、括号粘贴异常、光标消失、方向键错乱。
+// 只写进 xterm 的解析流（重置模拟器自身状态），不碰 PTY/shell，也不清空回滚历史 → 零副作用。
+const SOFT_RESET_SEQ =
+  "\x1b[!p" + // DECSTR 软复位:光标键(DECCKM)/原点/插入/滚动区/SGR 等一把回默认
+  "\x1b[?7h" + // 自动换行开(默认;以防 TUI 关了它崩溃没恢复)
+  "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1005l\x1b[?1006l\x1b[?1015l" + // 各种鼠标上报关(DECSTR 不管)
+  "\x1b[?1004l" + // 焦点上报关(和 onData 出口的吞噬双保险)
+  "\x1b[?2004l" + // 括号粘贴关
+  "\x1b[?1049l" + // 退出备用屏 → 回主缓冲(治花屏)
+  "\x1b[?25h"; // 显示光标(TUI 崩溃常把光标藏了)
+
 type TermSession = {
   key: number;
   title: string;
@@ -55,6 +67,8 @@ export type TermGroup = {
   fontSize: number;
   /** 调字号（delta 正负）：应用到本 group 所有终端 + 存盘 */
   bumpFontSize: (delta: number) => void;
+  /** 软重置当前终端：清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失等），不清屏不碰 shell */
+  resetActive: () => void;
 };
 
 /**
@@ -229,6 +243,14 @@ export function useTermGroup(opts: {
 
     const s: TermSession = { key, title: `终端 ${key}`, term, fit, sessionId: null, el, disposed: false, lastCols: 0, lastRows: 0 };
     term.onData((d) => {
+      // —— 焦点上报泄漏防护（DECSET 1004）——
+      // claude/codex 等 TUI 启用「焦点上报」(\e[?1004h) 后若崩溃/被杀，没机会发关闭序列
+      // (\e[?1004l)，xterm 内部这个模式就卡在开着。之后终端每次失/获焦点（点别处、切窗口、
+      // alt-tab、点标签…）xterm 都会朝 PTY 发一个裸 \e[O / \e[I，落到已回到 shell 的命令行里
+      // → `[Occd`、`> I` 这类「突然吐乱码 / 命令被污染」。这俩裸序列键盘敲不出来、对本工作台
+      // 任何工具也无实际功能，就在 xterm→PTY 这唯一出口处吞掉，根治所有焦点来源
+      // （比逐个按钮 preventDefault 彻底）。
+      if (d === "\x1b[I" || d === "\x1b[O") return;
       if (s.sessionId) invoke("term_write", { sessionId: s.sessionId, data: d }).catch(() => {});
     });
 
@@ -288,6 +310,13 @@ export function useTermGroup(opts: {
       }
       if (mod && e.key === "0") {
         bumpFontSize(14 - fontSizeRef.current);
+        return false;
+      }
+      // 软重置（Ctrl/Cmd+Shift+R）：一键清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失…）。
+      // preventDefault 挡掉 WebView「刷新页面」默认；写 xterm 不发 PTY，shell 命令行不受影响。
+      if (mod && e.shiftKey && (e.key === "r" || e.key === "R")) {
+        e.preventDefault();
+        s.term.write(SOFT_RESET_SEQ);
         return false;
       }
       return true;
@@ -434,6 +463,14 @@ export function useTermGroup(opts: {
     [newTerm, ensurePty],
   );
 
+  // 软重置当前激活终端的模拟器状态 —— 详见 SOFT_RESET_SEQ 注释。只写 xterm，不碰 PTY/shell。
+  const resetActive = useCallback(() => {
+    const s = sessionsRef.current.find((x) => x.key === activeKeyRef.current);
+    if (!s) return;
+    s.term.write(SOFT_RESET_SEQ);
+    s.term.focus();
+  }, []);
+
   // 容器尺寸变化 → 统一防抖 fit（rAF 合并；拖拽时 ResizeObserver 会高频触发，
   // 合并后每帧最多 fit 一次，不再抖）
   useEffect(() => {
@@ -458,5 +495,5 @@ export function useTermGroup(opts: {
     };
   }, []);
 
-  return { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize };
+  return { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize, resetActive };
 }

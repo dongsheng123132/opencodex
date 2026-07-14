@@ -21,6 +21,7 @@ mod config;
 mod fs;
 mod git;
 mod kv;
+mod logs;
 mod paths;
 mod proxy;
 mod quick;
@@ -73,11 +74,15 @@ fn hide_window(app: AppHandle) {
     }
 }
 
-/// 工作台「浏览器」面板：在独立 webview 子窗口打开 URL（localhost / https）。
-/// 用子窗口而非 iframe，因 localhost 开发服务器与很多文档站带 X-Frame-Options 会被 deny。
+/// 工作台「浏览器」面板的兜底：在独立 webview 子窗口打开 URL（localhost / https）。
+/// 大多数页面前端已用内嵌 iframe 直接显示；遇到带 X-Frame-Options DENY 的站点内嵌会白屏，
+/// 用这个弹独立子窗口兜底（子窗口不受 X-Frame-Options 限制）。
 /// label 形如 `browser-<taskId>`，每任务一个，复用则导航。
+///
+/// **必须是同步命令**：Tauri 在 Windows 上从异步线程建窗口会静默失败（窗口压根不弹）。
+/// 同步命令跑在主线程，建窗口才可靠。
 #[tauri::command]
-async fn open_browser(app: AppHandle, url: String, label: String) -> Result<(), String> {
+fn open_browser(app: AppHandle, url: String, label: String) -> Result<(), String> {
     let ok = url.starts_with("http://localhost")
         || url.starts_with("http://127.0.0.1")
         || url.starts_with("https://");
@@ -128,6 +133,9 @@ fn parse_open_dir_arg() -> Option<String> {
 // ============================================================
 
 pub fn run() {
+    // 先装 panic 钩子：之后任何线程 panic 都先落盘再 abort（panic=abort 下也有据可查）
+    logs::install_panic_hook();
+
     let args: Vec<String> = std::env::args().collect();
 
     // 终端无头验证：opencodex --term-test "<cmd>"（验证 PTY + PATH 注入，不依赖 GUI）
@@ -143,6 +151,13 @@ pub fn run() {
                 std::process::exit(1);
             }
         }
+    }
+
+    // 崩溃-清理自检：opencodex --term-kill-test（验证关闭会话杀整棵进程树、不留孤儿）
+    #[cfg(windows)]
+    if args.iter().any(|a| a == "--term-kill-test") {
+        println!("{}", term::headless_kill_test());
+        std::process::exit(0);
     }
 
     tauri::Builder::default()
@@ -178,11 +193,22 @@ pub fn run() {
             quick::set_quick_cmds,
             kv::kv_get,
             kv::kv_set,
+            logs::app_log,
+            logs::read_recent_logs,
+            logs::clear_logs,
+            logs::logs_path,
             agent::claude::claude_send,
             agent::claude::claude_interrupt,
             agent::claude::claude_reset,
             fs::list_dir,
             fs::read_text_file,
+            fs::create_dir,
+            fs::create_file,
+            fs::rename_path,
+            fs::copy_path,
+            fs::delete_path,
+            fs::reveal_in_file_manager,
+            fs::open_path,
             git::git_is_repo,
             git::git_list_branches,
             git::git_create_worktree,

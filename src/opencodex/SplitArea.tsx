@@ -50,6 +50,11 @@ export function ChatColumn({
   const onSplitReady = useCallback((api: SplitApi) => {
     splitApiRef.current = api;
   }, []);
+  // 稳定引用（不随每次渲染重建）——FilesPanel 靠这个引用不变才能正确 memo 住 Redline host，
+  // 否则每次父级重渲染都会造出新 host，Redline 会误判成"换文件了"重新拉字节。
+  const pasteToTerminal = useCallback((text: string) => {
+    splitApiRef.current?.pasteToLast(text);
+  }, []);
 
   // 滑出面板宽度拖动（从分隔条往左拖加宽面板）
   const onDragRatio = useCallback(
@@ -171,6 +176,7 @@ export function ChatColumn({
                 active={active}
                 kind={rightKind}
                 onClose={() => toggleRight(task.id, false)}
+                pasteToTerminal={pasteToTerminal}
               />
             </div>
           </>
@@ -186,11 +192,14 @@ function SidePanel({
   active,
   kind,
   onClose,
+  pasteToTerminal,
 }: {
   task: Task;
   active: boolean;
   kind: Exclude<RightKind, "terminal">;
   onClose: () => void;
+  /** Redline「发给终端」按钮用：把标注文字写进主区最后一个终端格（不回车）。 */
+  pasteToTerminal: (text: string) => void;
 }) {
   const label = kind === "files" ? "文件" : "浏览器";
   return (
@@ -207,7 +216,7 @@ function SidePanel({
         </button>
       </div>
       <div className="flex-1 min-h-0 relative">
-        {kind === "files" && <FilesPanel root={task.dir} active={active} />}
+        {kind === "files" && <FilesPanel root={task.dir} active={active} pasteToTerminal={pasteToTerminal} />}
         {kind === "browser" && <BrowserPanel taskId={task.id} />}
       </div>
     </div>

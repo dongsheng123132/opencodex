@@ -6,7 +6,7 @@
  * 只有「关闭任务」父级才卸载本组件，useTermGroup 的卸载 effect 关掉本任务所有 PTY。
  */
 import { useEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, RotateCcw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useTermGroup } from "../term/useTermGroup";
@@ -20,13 +20,18 @@ function pathsToCmdText(paths: string[]): string {
 
 type QuickCmd = { label: string; cmd: string };
 
-/** TermPanel 暴露给父级的命令式接口（透出 runInActive 给一键启动场景）。 */
-export type TermPanelApi = { runCmd: (cmd: string) => void };
+/** TermPanel 暴露给父级的命令式接口（透出 runInActive 给一键启动场景，pasteText 给 Redline 标注转发场景）。 */
+export type TermPanelApi = {
+  runCmd: (cmd: string) => void;
+  /** 写入原始文本，不回车——Redline「发给终端」按钮用，人确认后自己按回车。 */
+  pasteText: (text: string) => void;
+};
 
 /** 终端顶部一键启动的常用命令（命令过后端白名单）。点一下发进终端执行。 */
 const QUICK_TOOLS: { label: string; cmd: string }[] = [
   { label: "claude", cmd: "claude" },
   { label: "codex", cmd: "codex" },
+  { label: "kimi", cmd: "kimi" },
   { label: "/model", cmd: "/model" }, // 切模型，最常用
   { label: "ccd", cmd: "ccd" }, // 常用命令
   { label: "openclaw gw", cmd: "openclaw gateway run" }, // 起 gateway 服务
@@ -51,7 +56,7 @@ export function TermPanel({
   /** 挂载后回调，透出 runCmd 给父级（一键启动 WebUI 等场景）。 */
   onReady?: (api: TermPanelApi) => void;
 }) {
-  const { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize } = useTermGroup({
+  const { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize, resetActive } = useTermGroup({
     open: active,
     cwd,
     tool,
@@ -145,10 +150,10 @@ export function TermPanel({
     if (confirmTimer.current) clearTimeout(confirmTimer.current);
   }, []);
 
-  // 透出 runInActive 给父级（ToolAppView 一键开 WebUI 用）
+  // 透出 runInActive/pasteToActive 给父级（ToolAppView 一键开 WebUI 用；Redline 标注转发用）
   useEffect(() => {
-    onReady?.({ runCmd: runInActive });
-  }, [onReady, runInActive]);
+    onReady?.({ runCmd: runInActive, pasteText: pasteToActive });
+  }, [onReady, runInActive, pasteToActive]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -196,6 +201,7 @@ export function TermPanel({
           {/* 字号调节：A- / 当前值 / A+（也可用 Ctrl +/- 调，Ctrl 0 复位） */}
           <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
             <button
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(-1)}
               title="字号减小（Ctrl -）"
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
@@ -204,6 +210,7 @@ export function TermPanel({
             </button>
             <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title="当前字号">{fontSize}</span>
             <button
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(1)}
               title="字号增大（Ctrl +）"
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
@@ -211,14 +218,31 @@ export function TermPanel({
               +
             </button>
           </div>
+          {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
+              只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
+          <div className="flex items-center ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={resetActive}
+              title="重置终端（Ctrl+Shift+R）：清掉 claude/codex 等崩溃后残留的鼠标乱码、花屏、光标消失等卡死状态"
+              className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+            >
+              <RotateCcw size={13} />
+            </button>
+          </div>
         </div>
         {/* 快捷词：内置（claude/codex…，不可删）+ 用户自定义（可删）+ 添加。
             占满剩余空间；按钮过多时内层横向滚动，+ 永远固定在最右不被挤掉。 */}
         <div className="relative flex items-center flex-1 min-w-0 pl-2 ml-1 border-l border-white/[0.06]">
+          {/* onMouseDown preventDefault：点按钮不抢走终端焦点，纯 UX（点完焦点留在终端可继续打字、
+              少一次焦点抖动）。焦点上报泄漏（DECSET 1004 卡死 → \e[O/\e[I 污染命令成 `[Occd`/`> I`）
+              的根治不在这里，而在 useTermGroup 的 term.onData 出口统一吞掉裸焦点序列——那才覆盖
+              所有焦点来源（alt-tab、点文件树/对话、切窗口…），不止快捷按钮这一个口子。 */}
           <div className="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
             {builtins.map((q) => (
               <button
                 key={q.label}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => runInActive(q.cmd)}
                 title={`在终端运行：${q.cmd}`}
                 className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors shrink-0"
@@ -229,6 +253,7 @@ export function TermPanel({
             {custom.map((q) => (
               <span key={q.label} className="group/cmd relative inline-flex items-center shrink-0">
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
                   title={`在终端运行：${q.cmd}`}
                   className="h-6 pl-2 pr-2 rounded text-[11px] text-accent-400 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
@@ -248,10 +273,11 @@ export function TermPanel({
           {/* 添加按钮固定在最右，永远可见 */}
           <button
             onClick={() => setAdding((v) => !v)}
-            title="添加常用快捷词（如 /model、ccd）"
-            className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-2 bg-white/[0.04] border border-white/[0.10] hover:text-ink-0 hover:bg-accent/[0.18] hover:border-accent/40 shrink-0 ml-1 transition-colors"
+            title="添加自定义快捷命令"
+            className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-white/[0.04] border border-white/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
           >
-            <Plus size={13} />
+            <Plus size={11} />
+            自定义
           </button>
 
           {/* 添加弹层 */}

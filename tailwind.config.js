@@ -1,7 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 // 中性灰 + 单一冷调色（Linear / cc-switch 风）。去掉黑金御印，主流商务风。
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  // redline-core 是独立仓库(../redline)、link: 依赖过来的，源码不在本仓库 src/ 下，
+  // 得单独把它的 content 扫进来，否则里面用到的 Tailwind class 不会被 JIT 生成对应 CSS
+  // （样式会"丢"，不是逻辑 bug）。
+  content: [
+    "./index.html",
+    "./src/**/*.{ts,tsx}",
+    "../redline/packages/redline-core/src/**/*.{ts,tsx}",
+  ],
   darkMode: "class",
   theme: {
     extend: {

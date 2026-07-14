@@ -1,12 +1,13 @@
 /**
- * 浏览器面板 —— 在独立 webview 子窗口打开 localhost / 网页。
+ * 浏览器面板 —— 在右侧内嵌 iframe 打开 localhost / 网页；被拒内嵌的站点弹独立窗口兜底。
  *
- * 为什么不内嵌 iframe：localhost 开发服务器和很多文档站带 X-Frame-Options: DENY，iframe 会白屏。
- * webview 子窗口不受此限。每个任务一个子窗口 label（browser-<taskId>），复用则导航。
+ * 默认内嵌（iframe）：localhost 开发服务器、本地 HTML 直接在右侧显示，不用切窗口。
+ * 兜底（独立子窗口）：少数站点带 X-Frame-Options: DENY，iframe 会白屏 —— 这时点「新窗口」
+ * 用 open_browser 弹独立 webview 子窗口（不受 X-Frame-Options 限制）。
  */
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ArrowUpRight, Globe } from "lucide-react";
+import { ArrowUpRight, Globe, RefreshCw, ExternalLink } from "lucide-react";
 
 const QUICK = [
   { label: "localhost:3000", url: "http://localhost:3000" },
@@ -14,14 +15,32 @@ const QUICK = [
   { label: "localhost:8080", url: "http://localhost:8080" },
 ];
 
+const normalize = (raw: string) => {
+  const u = raw.trim();
+  if (!u) return "";
+  return /^https?:\/\//.test(u) ? u : "http://" + u;
+};
+
 export function BrowserPanel({ taskId }: { taskId: string }) {
   const [url, setUrl] = useState("http://localhost:3000");
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0); // 刷新 iframe 用
   const [err, setErr] = useState<string | null>(null);
 
-  const open = async (target: string) => {
-    let u = target.trim();
+  // 内嵌打开
+  const openInline = (target: string) => {
+    const u = normalize(target);
     if (!u) return;
-    if (!/^https?:\/\//.test(u)) u = "http://" + u;
+    setErr(null);
+    setUrl(u);
+    setLoaded(u);
+    setNonce((n) => n + 1);
+  };
+
+  // 兜底：弹独立窗口
+  const openWindow = async (target: string) => {
+    const u = normalize(target || loaded || "");
+    if (!u) return;
     setErr(null);
     try {
       await invoke("open_browser", { url: u, label: `browser-${taskId}` });
@@ -37,33 +56,60 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && open(url)}
+          onKeyDown={(e) => e.key === "Enter" && openInline(url)}
           placeholder="http://localhost:3000 或 https://…"
           className="flex-1 h-7 rounded-md border border-white/[0.10] bg-bg-1 px-2.5 text-[12.5px] text-ink-1 placeholder:text-ink-4 outline-none focus:border-accent/50"
         />
+        {loaded && (
+          <button
+            onClick={() => setNonce((n) => n + 1)}
+            title="刷新"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
+          >
+            <RefreshCw size={13} />
+          </button>
+        )}
         <button
-          onClick={() => open(url)}
+          onClick={() => openInline(url)}
           className="inline-flex items-center gap-1 h-7 px-3 rounded-md bg-accent hover:bg-accent-600 text-white text-[12px] shrink-0"
         >
           打开 <ArrowUpRight size={13} />
         </button>
+        <button
+          onClick={() => void openWindow(url)}
+          title="在独立窗口打开（页面禁止内嵌时用）"
+          className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0 border-l border-white/[0.08] ml-0.5 pl-1"
+        >
+          <ExternalLink size={13} />
+        </button>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-        <div className="text-ink-3 text-[13px]">在独立窗口打开预览页（localhost 也能开）</div>
-        <div className="flex flex-wrap gap-2 justify-center">
-          {QUICK.map((q) => (
-            <button
-              key={q.url}
-              onClick={() => open(q.url)}
-              className="h-8 px-3 rounded-full border border-white/[0.10] text-[12px] text-ink-2 hover:bg-white/[0.04] font-mono"
-            >
-              {q.label}
-            </button>
-          ))}
+      {loaded ? (
+        <iframe
+          key={nonce}
+          src={loaded}
+          title="预览"
+          className="flex-1 w-full bg-white border-0"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        />
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
+          <div className="text-ink-3 text-[13px]">在右侧内嵌打开预览页（localhost 也能开）</div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {QUICK.map((q) => (
+              <button
+                key={q.url}
+                onClick={() => openInline(q.url)}
+                className="h-8 px-3 rounded-full border border-white/[0.10] text-[12px] text-ink-2 hover:bg-white/[0.04] font-mono"
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <div className="text-ink-5 text-[11px]">页面若空白（禁止内嵌），点地址栏右侧 ⬈ 用独立窗口打开</div>
         </div>
-        {err && <div className="text-danger-400 text-[12px]">{err}</div>}
-      </div>
+      )}
+      {err && <div className="shrink-0 px-3 py-1.5 text-danger-400 text-[12px] border-t border-white/[0.06]">{err}</div>}
     </div>
   );
 }

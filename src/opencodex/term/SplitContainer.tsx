@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // (useRef 已用于分隔条拖动 + firstPaneId)
 import { Columns2, Rows2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { TermPanel } from "../panels/TermPanel";
+import { TermPanel, type TermPanelApi } from "../panels/TermPanel";
 
 type Pane = { kind: "pane"; id: number };
 type Split = { kind: "split"; dir: "row" | "col"; ratio: number; a: Node; b: Node };
@@ -26,8 +26,12 @@ function toShape(node: Node): ShapeNode {
   return { kind: "split", dir: node.dir, ratio: node.ratio, a: toShape(node.a), b: toShape(node.b) };
 }
 
-/** 命令式接口：透给 SidePanel 标题栏的「分屏」按钮，对最后一个叶子格分屏。 */
-export type SplitApi = { splitLast: (dir: "row" | "col") => void };
+/** 命令式接口：透给 SidePanel 标题栏的「分屏」按钮，对最后一个叶子格分屏；
+ * pasteToLast 给 Redline「发给终端」按钮用，把标注文字写进最后一个叶子格的终端（不回车）。 */
+export type SplitApi = {
+  splitLast: (dir: "row" | "col") => void;
+  pasteToLast: (text: string) => void;
+};
 
 export function SplitContainer({
   cwd,
@@ -99,10 +103,31 @@ export function SplitContainer({
     });
   }, [newPane]);
 
+  // 每个叶子格的终端 API（按 pane id 存），Redline「发给终端」按钮靠这个找到目标终端
+  const paneApisRef = useRef<Map<number, TermPanelApi>>(new Map());
+  const registerPaneApi = useCallback((id: number, api: TermPanelApi | null) => {
+    if (api) paneApisRef.current.set(id, api);
+    else paneApisRef.current.delete(id);
+  }, []);
+
+  // root 的最新值存一份 ref（state 更新是异步的，pasteToLast 是稳定引用的回调，
+  // 靠 ref 而不是闭包里的 root 才能拿到最新分屏树）
+  const rootRef = useRef(root);
+  useEffect(() => {
+    rootRef.current = root;
+  }, [root]);
+
+  // 写进「最后一个叶子格」的终端（不回车）——不追踪真实鼠标焦点，跟 splitLast 同一套"最后一格"
+  // 语义，够用且不用给每个 TermPanel 加焦点监听（不用太深入）。
+  const pasteToLast = useCallback((text: string) => {
+    const id = lastPaneId(rootRef.current);
+    paneApisRef.current.get(id)?.pasteText(text);
+  }, []);
+
   // 透出命令式接口给父级
   useEffect(() => {
-    onReady?.({ splitLast });
-  }, [onReady, splitLast]);
+    onReady?.({ splitLast, pasteToLast });
+  }, [onReady, splitLast, pasteToLast]);
 
   // 关闭某个 pane（用兄弟节点替换它的父 split）
   const closePane = useCallback((targetId: number) => {
@@ -134,8 +159,8 @@ export function SplitContainer({
           style={{ left: `${pr.left}%`, top: `${pr.top}%`, width: `${pr.width}%`, height: `${pr.height}%` }}
         >
           <div className="relative h-full min-h-0 min-w-0">
-            {/* 每格右上角：拆分 / 关闭 */}
-            <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
+            {/* 每格右上角（header 下方）：拆分 / 关闭 */}
+            <div className="absolute top-9 right-1.5 z-10 flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
               <button
                 onClick={() => splitPane(pr.id, "row")}
                 title="左右分屏（再开一个终端）"
@@ -165,6 +190,7 @@ export function SplitContainer({
               active={active}
               tool={tool}
               initialCmd={pr.id === firstPaneId.current ? initialCmd : undefined}
+              onReady={(api) => registerPaneApi(pr.id, api)}
             />
           </div>
         </div>

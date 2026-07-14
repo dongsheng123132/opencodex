@@ -221,6 +221,160 @@ pub fn headless_run(cmd: &str, timeout_ms: u64) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&g).to_string())
 }
 
+/// 查某 pid 是否还活着（无额外依赖，给崩溃自检用）。
+#[cfg(windows)]
+fn pid_alive(pid: u32) -> bool {
+    let out = std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+        .creation_flags(0x0800_0000)
+        .output();
+    match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).contains(&format!("\"{pid}\"")),
+        Err(_) => false,
+    }
+}
+#[cfg(not(windows))]
+fn pid_alive(pid: u32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// 崩溃自检用：起一个 shell（同 term_open 路径），让它内部跑一个常驻 node 子进程
+/// （模拟 claude/codex/node），返回 (child 句柄, writer, master, shell_pid, node_pid)。
+/// node 会把自己的 pid 写到临时文件，便于事后判断它是否被清掉。
+#[cfg(windows)]
+fn spawn_shell_with_node(
+    tag: &str,
+) -> Result<
+    (
+        Box<dyn portable_pty::Child + Send + Sync>,
+        Box<dyn Write + Send>,
+        Box<dyn portable_pty::MasterPty + Send>,
+        u32,
+        u32,
+    ),
+    String,
+> {
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize { rows: 24, cols: 100, pixel_width: 0, pixel_height: 0 })
+        .map_err(|e| format!("openpty: {e}"))?;
+    let mut builder = shell_builder();
+    builder.env("PATH", build_path());
+    builder.env("TERM", "xterm-256color");
+    builder.cwd(home_dir());
+    let mut child = pair.slave.spawn_command(builder).map_err(|e| format!("spawn shell: {e}"))?;
+    drop(pair.slave);
+    let mut writer = pair.master.take_writer().map_err(|e| format!("writer: {e}"))?;
+    // 必须持续读，否则 pwsh 输出写满 PTY 缓冲会卡住，node 命令发不进去
+    if let Ok(mut r) = pair.master.try_clone_reader() {
+        std::thread::spawn(move || {
+            let mut b = [0u8; 4096];
+            loop {
+                match r.read(&mut b) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+            }
+        });
+    }
+    let shell_pid = child.process_id().ok_or("拿不到 shell pid")?;
+
+    let pidfile = std::env::temp_dir().join(format!("octest_{tag}.pid"));
+    let _ = std::fs::remove_file(&pidfile);
+    let pf = pidfile.display().to_string().replace('\\', "/");
+    // node 子进程：写自己 pid → 文件，然后常驻（1e9ms 一个空定时器，挂着不退）
+    let cmd = format!(
+        "node -e \"require('fs').writeFileSync('{pf}', String(process.pid)); setInterval(()=>{{}}, 1e9)\"\r\n"
+    );
+    writer.write_all(cmd.as_bytes()).map_err(|e| format!("write: {e}"))?;
+    let _ = writer.flush();
+
+    // 等 node 起来写 pid（最多 8s）
+    let start = std::time::Instant::now();
+    let mut node_pid = None;
+    while start.elapsed().as_secs() < 8 {
+        if let Ok(s) = std::fs::read_to_string(&pidfile) {
+            if let Ok(p) = s.trim().parse::<u32>() {
+                node_pid = Some(p);
+                break;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let _ = std::fs::remove_file(&pidfile);
+    let node_pid = match node_pid {
+        Some(p) => p,
+        None => {
+            // node 没起来：先把 pwsh 清掉别泄漏，再报错
+            kill_tree(shell_pid);
+            let _ = child.kill();
+            return Err("node 子进程未起来(测试环境无 node?)".into());
+        }
+    };
+    Ok((child, writer, pair.master, shell_pid, node_pid))
+}
+
+/// 无头崩溃-清理自检：复现「shell 起子进程 → 关会话」，对照验证 kill_tree 不留孤儿。
+/// 给 `--term-kill-test` 用，不依赖 GUI。返回人读报告。
+#[cfg(windows)]
+pub fn headless_kill_test() -> String {
+    let mut report = String::new();
+
+    // ===== A 组：只 child.kill() 杀顶层 pwsh（模拟没有 kill_tree 的旧行为）=====
+    //          期望：node 子进程变孤儿、继续存活 —— 复现崩溃根因
+    match spawn_shell_with_node("a") {
+        Ok((mut child, _w, _m, shell_pid, node_pid)) => {
+            let _ = child.kill(); // 只杀顶层，不动子树
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let node_alive = pid_alive(node_pid);
+            report.push_str(&format!(
+                "A 组 (仅杀顶层 child.kill): node 子进程(pid {node_pid}) 存活={node_alive}  →  {}\n",
+                if node_alive {
+                    "✅ 复现旧 bug：顶层一杀，子进程变孤儿继续占资源"
+                } else {
+                    "（本机父死子亡，少见；说明 portable-pty 自带 job 级联杀）"
+                }
+            ));
+            // 清掉 A 组遗留（不管死活都兜底）
+            kill_tree(shell_pid);
+            kill_tree(node_pid);
+        }
+        Err(e) => report.push_str(&format!("A 组 setup 失败: {e}\n")),
+    }
+
+    // ===== B 组：调真正的 kill_tree（term_close 用的同一函数）=====
+    //          期望：shell + node 整棵树全清光 —— 验证修复
+    match spawn_shell_with_node("b") {
+        Ok((mut child, _w, _m, shell_pid, node_pid)) => {
+            kill_tree(shell_pid); // ← 真·修复路径（term_close 内部就是这一句）
+            let _ = child.kill();
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let shell_alive = pid_alive(shell_pid);
+            let node_alive = pid_alive(node_pid);
+            let pass = !shell_alive && !node_alive;
+            report.push_str(&format!(
+                "B 组 (kill_tree 整棵树): shell(pid {shell_pid}) 存活={shell_alive}, node(pid {node_pid}) 存活={node_alive}  →  {}\n",
+                if pass { "✅ PASS：整棵进程树清光，无孤儿残留" } else { "❌ FAIL：仍有残留进程" }
+            ));
+            if !pass {
+                kill_tree(shell_pid);
+                kill_tree(node_pid);
+            }
+            report.push_str(&format!(
+                "\n结论: 关闭会话的进程树清理 {}\n",
+                if pass { "工作正常 —— 崩溃根因(孤儿堆积)已修复" } else { "仍有问题 —— 需排查" }
+            ));
+        }
+        Err(e) => report.push_str(&format!("B 组 setup 失败: {e}\n")),
+    }
+
+    report
+}
+
 /// 起一个 PTY 会话。返回 session_id；输出通过 `on_data` Channel 流回前端。
 #[tauri::command]
 pub async fn term_open(

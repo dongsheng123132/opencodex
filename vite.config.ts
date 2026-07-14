@@ -18,5 +18,8 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host ? { protocol: "ws", host, port: 1431 } : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
+    // redline-core 是 link: 依赖，源码在仓库根目录之外（../redline），dev server 默认只
+    // 敢直接 serve 项目根内的文件，得显式放行，否则 `pnpm tauri dev` 里预览面板会 403。
+    fs: { allow: [".", "../redline"] },
   },
 }));

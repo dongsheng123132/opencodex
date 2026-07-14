@@ -1,6 +1,6 @@
 [package]
 name = "opencodex"
-version = "0.3.5"
+version = "0.3.8"
 description = "OpenCodex — 开源绿色的本地编程工作台：以文件夹为基础的多终端 AI 编程与管理"
 authors = ["OpenCodex Contributors"]
 edition = "2021"
@@ -13,7 +13,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["image-png"] }
+# protocol-asset：文件面板用 asset 协议内嵌预览图片 / 本地 HTML（convertFileSrc）
+tauri = { version = "2", features = ["image-png", "protocol-asset"] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
@@ -23,6 +24,9 @@ portable-pty = "0.8"
 # 系统剪贴板读写 —— WebView2 的 navigator.clipboard 在终端焦点下常拿不到权限，
 # 改走 Rust 直读系统剪贴板，复制/粘贴 100% 可靠。纯 Rust、跨平台、体积小。
 arboard = "3"
+# 删除到回收站（可恢复）—— 文件面板的删除不做永久删除，符合「写入可回滚」红线。
+# Windows 走 Shell API（复用系统 windows crate，增量体积很小），跨平台。
+trash = "5"
 
 [profile.release]
 # 体积优先：绿色 exe 要小。LTO + strip + opt-z 把 exe 压到最小。
