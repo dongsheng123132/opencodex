@@ -19,8 +19,8 @@ import { BrowserPanel } from "./panels/BrowserPanel";
 
 // 右侧滑出层只放文件/浏览器（终端是主区，不再是滑出项）
 const RIGHT_META: { kind: Exclude<RightKind, "terminal">; label: string; icon: typeof FolderTree }[] = [
-  { kind: "files", label: "文件", icon: FolderTree },
-  { kind: "browser", label: "浏览器", icon: Globe },
+  { kind: "files", label: "Files", icon: FolderTree },
+  { kind: "browser", label: "Browser", icon: Globe },
 ];
 
 /**
@@ -105,14 +105,14 @@ export function ChatColumn({
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => splitApiRef.current?.splitLast("row")}
-            title="左右分屏（再开一个终端）"
+            title="Split horizontally (open another terminal)"
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
           >
             <Columns2 size={14} />
           </button>
           <button
             onClick={() => splitApiRef.current?.splitLast("col")}
-            title="上下分屏（再开一个终端）"
+            title="Split vertically (open another terminal)"
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
           >
             <Rows2 size={14} />
@@ -122,11 +122,11 @@ export function ChatColumn({
         {/* 模型设置 */}
         <button
           onClick={onGoManage}
-          title="模型设置（自带模型）"
+          title="Model settings (bring your own model)"
           className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-[12px] transition-colors text-ink-3 hover:bg-white/[0.05] hover:text-ink-1 ml-1 pl-2 border-l border-white/[0.08]"
         >
           <Cpu size={13} />
-          <span className="hidden md:inline">模型</span>
+          <span className="hidden md:inline">Model</span>
         </button>
 
         {/* 文件/浏览器开关 —— 点了才从右侧滑出 */}
@@ -201,7 +201,7 @@ function SidePanel({
   /** Redline「发给终端」按钮用：把标注文字写进主区最后一个终端格（不回车）。 */
   pasteToTerminal: (text: string) => void;
 }) {
-  const label = kind === "files" ? "文件" : "浏览器";
+  const label = kind === "files" ? "Files" : "Browser";
   return (
     <div className="flex flex-col h-full min-h-0 min-w-0 border-l border-white/[0.06] bg-bg-2">
       <div className="flex items-center gap-2 h-9 px-3 border-b border-white/[0.06] bg-bg-1 shrink-0">
@@ -209,7 +209,7 @@ function SidePanel({
         <div className="flex-1" />
         <button
           onClick={onClose}
-          title="收起"
+          title="Collapse"
           className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
         >
           <X size={15} />

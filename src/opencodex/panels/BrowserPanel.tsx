@@ -57,13 +57,13 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && openInline(url)}
-          placeholder="http://localhost:3000 或 https://…"
+          placeholder="http://localhost:3000 or https://…"
           className="flex-1 h-7 rounded-md border border-white/[0.10] bg-bg-1 px-2.5 text-[12.5px] text-ink-1 placeholder:text-ink-4 outline-none focus:border-accent/50"
         />
         {loaded && (
           <button
             onClick={() => setNonce((n) => n + 1)}
-            title="刷新"
+            title="Refresh"
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
           >
             <RefreshCw size={13} />
@@ -73,11 +73,11 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
           onClick={() => openInline(url)}
           className="inline-flex items-center gap-1 h-7 px-3 rounded-md bg-accent hover:bg-accent-600 text-white text-[12px] shrink-0"
         >
-          打开 <ArrowUpRight size={13} />
+          Open <ArrowUpRight size={13} />
         </button>
         <button
           onClick={() => void openWindow(url)}
-          title="在独立窗口打开（页面禁止内嵌时用）"
+          title="Open in a separate window (for pages that block embedding)"
           className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0 border-l border-white/[0.08] ml-0.5 pl-1"
         >
           <ExternalLink size={13} />
@@ -88,13 +88,13 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         <iframe
           key={nonce}
           src={loaded}
-          title="预览"
+          title="Preview"
           className="flex-1 w-full bg-white border-0"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
       ) : (
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-          <div className="text-ink-3 text-[13px]">在右侧内嵌打开预览页（localhost 也能开）</div>
+          <div className="text-ink-3 text-[13px]">Open a preview page embedded on the right (localhost works too)</div>
           <div className="flex flex-wrap gap-2 justify-center">
             {QUICK.map((q) => (
               <button
@@ -106,7 +106,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
               </button>
             ))}
           </div>
-          <div className="text-ink-5 text-[11px]">页面若空白（禁止内嵌），点地址栏右侧 ⬈ 用独立窗口打开</div>
+          <div className="text-ink-5 text-[11px]">If the page is blank (embedding blocked), click ⬈ on the right of the address bar to open it in a separate window</div>
         </div>
       )}
       {err && <div className="shrink-0 px-3 py-1.5 text-danger-400 text-[12px] border-t border-white/[0.06]">{err}</div>}

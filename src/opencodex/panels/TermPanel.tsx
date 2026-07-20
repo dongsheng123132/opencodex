@@ -27,16 +27,15 @@ export type TermPanelApi = {
   pasteText: (text: string) => void;
 };
 
-/** 终端顶部一键启动的常用命令（命令过后端白名单）。点一下发进终端执行。 */
+/** 终端顶部一键启动的常用命令（命令过后端白名单）。点一下发进终端执行。
+ *  只放国际通用的 AI 编程 CLI —— 用户可在右侧「+ Custom」自行添加任意命令。 */
 const QUICK_TOOLS: { label: string; cmd: string }[] = [
-  { label: "claude", cmd: "claude" },
-  { label: "codex", cmd: "codex" },
-  { label: "kimi", cmd: "kimi" },
+  { label: "claude", cmd: "claude" }, // Claude Code
+  { label: "codex", cmd: "codex" }, // OpenAI Codex CLI
+  { label: "gemini", cmd: "gemini" }, // Google Gemini CLI
+  { label: "opencode", cmd: "opencode" }, // opencode
+  { label: "aider", cmd: "aider" }, // aider
   { label: "/model", cmd: "/model" }, // 切模型，最常用
-  { label: "ccd", cmd: "ccd" }, // 常用命令
-  { label: "openclaw gw", cmd: "openclaw gateway run" }, // 起 gateway 服务
-  { label: "openclaw cli", cmd: "openclaw" }, // 连已起的 gateway，交互调能力
-  { label: "hermes", cmd: "hermes" },
 ];
 
 export function TermPanel({
@@ -184,7 +183,7 @@ export function TermPanel({
                       ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真关
                       : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
                   }
-                  title={pending ? "再点一次确认关闭" : "关闭此终端"}
+                  title={pending ? "Click again to confirm close" : "Close this terminal"}
                 >
                   <X size={11} />
                 </button>
@@ -194,7 +193,7 @@ export function TermPanel({
           <button
             onClick={() => newTerm()}
             className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-2 bg-white/[0.04] border border-white/[0.10] hover:text-ink-0 hover:bg-accent/[0.18] hover:border-accent/40 shrink-0 transition-colors"
-            title="新建终端标签"
+            title="New terminal tab"
           >
             <Plus size={14} />
           </button>
@@ -203,16 +202,16 @@ export function TermPanel({
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(-1)}
-              title="字号减小（Ctrl -）"
+              title="Decrease font size (Ctrl -)"
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               −
             </button>
-            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title="当前字号">{fontSize}</span>
+            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title="Current font size">{fontSize}</span>
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(1)}
-              title="字号增大（Ctrl +）"
+              title="Increase font size (Ctrl +)"
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               +
@@ -224,7 +223,7 @@ export function TermPanel({
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={resetActive}
-              title="重置终端（Ctrl+Shift+R）：清掉 claude/codex 等崩溃后残留的鼠标乱码、花屏、光标消失等卡死状态"
+              title="Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash"
               className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               <RotateCcw size={13} />
@@ -244,7 +243,7 @@ export function TermPanel({
                 key={q.label}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => runInActive(q.cmd)}
-                title={`在终端运行：${q.cmd}`}
+                title={`Run in terminal: ${q.cmd}`}
                 className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors shrink-0"
               >
                 {q.label}
@@ -255,14 +254,14 @@ export function TermPanel({
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
-                  title={`在终端运行：${q.cmd}`}
+                  title={`Run in terminal: ${q.cmd}`}
                   className="h-6 pl-2 pr-2 rounded text-[11px] text-accent-400 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
                 >
                   {q.label}
                 </button>
                 <button
                   onClick={() => removeCustom(q.label)}
-                  title="删除此快捷词"
+                  title="Delete this shortcut"
                   className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-danger-500 text-white flex items-center justify-center transition-opacity"
                 >
                   <X size={9} />
@@ -273,30 +272,30 @@ export function TermPanel({
           {/* 添加按钮固定在最右，永远可见 */}
           <button
             onClick={() => setAdding((v) => !v)}
-            title="添加自定义快捷命令"
+            title="Add a custom shortcut"
             className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-white/[0.04] border border-white/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
           >
             <Plus size={11} />
-            自定义
+            Custom
           </button>
 
           {/* 添加弹层 */}
           {adding && (
             <div className="absolute right-0 top-8 z-40 w-60 rounded-card border border-white/[0.12] bg-bg-2 shadow-card p-2.5 space-y-2">
-              <div className="text-[11px] text-ink-3">添加快捷词（点按钮即发进终端执行）</div>
+              <div className="text-[11px] text-ink-3">Add a shortcut (clicking it sends the command to the terminal)</div>
               <input
                 autoFocus
                 value={draftLabel}
                 onChange={(e) => setDraftLabel(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustom()}
-                placeholder="按钮文字（如 /model）"
+                placeholder="Button label (e.g. /model)"
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <input
                 value={draftCmd}
                 onChange={(e) => setDraftCmd(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustom()}
-                placeholder="发送的命令（留空=同按钮文字）"
+                placeholder="Command to send (blank = same as label)"
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <div className="flex items-center justify-end gap-1.5">
@@ -308,13 +307,13 @@ export function TermPanel({
                   }}
                   className="h-7 px-2.5 rounded text-[12px] text-ink-3 hover:bg-white/[0.05]"
                 >
-                  取消
+                  Cancel
                 </button>
                 <button
                   onClick={addCustom}
                   className="h-7 px-3 rounded text-[12px] bg-accent/[0.18] text-accent-400 hover:bg-accent/[0.28]"
                 >
-                  添加
+                  Add
                 </button>
               </div>
             </div>
@@ -325,7 +324,7 @@ export function TermPanel({
       <div ref={hostRef} className="relative flex-1 min-h-0 bg-[#0d0d0f]">
         {dragOver && (
           <div className="pointer-events-none absolute inset-1 z-20 rounded-md border-2 border-dashed border-accent/70 bg-accent/[0.08] flex items-center justify-center">
-            <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">松手把路径填进命令行</span>
+            <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">Drop to insert the path into the command line</span>
           </div>
         )}
       </div>

@@ -20,8 +20,9 @@ function statusDot(s: TaskStatus): string {
 const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "claude", name: "Claude Code", cmd: "claude" },
   { tool: "codex", name: "Codex", cmd: "codex" },
-  { tool: "openclaw", name: "OpenClaw", cmd: "openclaw" },
-  { tool: "hermes", name: "Hermes", cmd: "hermes" },
+  { tool: "gemini", name: "Gemini CLI", cmd: "gemini" },
+  { tool: "opencode", name: "opencode", cmd: "opencode" },
+  { tool: "aider", name: "Aider", cmd: "aider" },
 ];
 
 export function SessionList() {
@@ -84,7 +85,7 @@ export function SessionList() {
   };
 
   const pickFolder = async () => {
-    const dir = await openDialog({ directory: true, multiple: false, title: "选择项目文件夹" });
+    const dir = await openDialog({ directory: true, multiple: false, title: "Select a project folder" });
     if (typeof dir === "string" && dir) await addTask(dir, "manual", false);
   };
 
@@ -93,7 +94,7 @@ export function SessionList() {
     const active = state.tasks.find((t) => t.id === state.activeId);
     const dir = active?.dir;
     if (dir) {
-      addSession(dir, "claude", "新对话", "claude");
+      addSession(dir, "claude", "New Chat", "claude");
     } else {
       await pickFolder();
     }
@@ -134,7 +135,7 @@ export function SessionList() {
       setWorktreeRepoRoot(null);
       setWorktreeBranch("");
     } catch (e) {
-      alert(`创建 worktree 失败: ${String(e)}`);
+      alert(`Failed to create worktree: ${String(e)}`);
     } finally {
       setWorktreeLoading(false);
     }
@@ -216,21 +217,21 @@ export function SessionList() {
       <aside className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06] bg-bg-1 min-h-0">
         <button
           onClick={toggleCollapsed}
-          title="展开会话栏"
+          title="Expand session bar"
           className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
         >
           <ChevronsRight size={16} />
         </button>
         <button
           onClick={newChat}
-          title="新建对话"
+          title="New chat"
           className="w-8 h-8 grid place-items-center rounded text-accent-400 hover:bg-accent/[0.16]"
         >
           <MessageSquarePlus size={16} />
         </button>
         <button
           onClick={pickFolder}
-          title="新建项目（选文件夹）"
+          title="New project (pick a folder)"
           className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
         >
           <FolderPlus size={15} />
@@ -246,10 +247,10 @@ export function SessionList() {
     >
       {/* 顶部品牌条 + 收起按钮 */}
       <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">会话</span>
+        <span className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Sessions</span>
         <button
           onClick={toggleCollapsed}
-          title="收起会话栏（把地方让给终端）"
+          title="Collapse session bar (give the space to the terminal)"
           className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
         >
           <ChevronsLeft size={14} />
@@ -263,27 +264,27 @@ export function SessionList() {
           className="w-full inline-flex items-center gap-2 h-8 px-2.5 rounded-card bg-accent/[0.14] text-accent-400 hover:bg-accent/[0.20] text-[12.5px] font-medium"
         >
           <MessageSquarePlus size={14} />
-          新建对话
+          New chat
         </button>
         <button
           onClick={pickFolder}
           className="w-full inline-flex items-center gap-2 h-7 px-2.5 rounded-card text-ink-3 hover:bg-white/[0.04] text-[12px]"
-          title="选择文件夹新建项目"
+          title="Pick a folder to start a project"
         >
           <FolderPlus size={13} />
-          新建项目（选文件夹）
+          New project (pick a folder)
         </button>
       </div>
-      <div className="px-3 pb-1 shrink-0 text-[11px] text-ink-5">已打开的项目</div>
+      <div className="px-3 pb-1 shrink-0 text-[11px] text-ink-5">Open projects</div>
 
       <div className="flex-1 overflow-y-auto py-1.5 min-h-0">
         {state.tasks.length === 0 ? (
           <div className="px-3 py-6 text-center text-ink-4 text-[12px] leading-relaxed">
-            还没有项目。
+            No projects yet.
             <br />
-            点「新建」选一个文件夹，
+            Click "New" to pick a folder
             <br />
-            在里面让多个 AI 一起干活。
+            and put several AIs to work in it.
           </div>
         ) : (
           groups.map(([projKey, tasks]) => {
@@ -292,7 +293,7 @@ export function SessionList() {
             const anyWorktreeTask = tasks.find((t) => !!t.worktree_repo);
             // 用于显示项目名的 dir：优先主仓库 dir，其次从 worktree_repo 取
             const projDisplayDir = nonWorktreeTask?.dir ?? anyWorktreeTask?.worktree_repo ?? tasks[0].dir;
-            const projName = projKey ? dirBasename(projDisplayDir) : "未绑定文件夹";
+            const projName = projKey ? dirBasename(projDisplayDir) : "No folder";
             // 用于创建新 worktree 的 git 根目录
             const repoRoot = nonWorktreeTask?.dir ?? anyWorktreeTask?.worktree_repo ?? null;
             // 有 worktree 任务 → 已知是 git repo；否则查检测缓存
@@ -356,8 +357,8 @@ export function SessionList() {
                     }
                     title={
                       confirmDelGroup === projKey
-                        ? "再点一次：删除该项目下全部会话（不会删除磁盘文件夹）"
-                        : "删除整个项目（移除其下所有会话，不动磁盘文件夹）"
+                        ? "Click again: remove all sessions in this project (the folder on disk is not deleted)"
+                        : "Delete the whole project (removes all its sessions; the folder on disk is untouched)"
                     }
                   >
                     <Trash2 size={12} />
@@ -383,7 +384,7 @@ export function SessionList() {
                           ? "opacity-100 text-accent-400 bg-accent/[0.12]"
                           : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]")
                       }
-                      title="新建 worktree（并行在另一个分支上工作）"
+                      title="New worktree (work on another branch in parallel)"
                     >
                       <GitBranch size={12} />
                     </button>
@@ -393,7 +394,7 @@ export function SessionList() {
                       <button
                         onClick={() => setAddMenuFor(addMenuFor === projKey ? null : projKey)}
                         className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]"
-                        title="在此项目新开一个 AI 会话"
+                        title="Open a new AI session in this project"
                       >
                         <Plus size={12} />
                       </button>
@@ -429,7 +430,7 @@ export function SessionList() {
                         if (e.key === "Enter") void doCreateWorktree();
                         if (e.key === "Escape") setWorktreeInputFor(null);
                       }}
-                      placeholder="分支名（回车确认）"
+                      placeholder="Branch name (Enter to confirm)"
                       className="flex-1 min-w-0 bg-transparent text-[11.5px] text-ink-1 placeholder:text-ink-5 outline-none"
                     />
                     <label className="flex items-center gap-1 text-[10.5px] text-ink-4 shrink-0 cursor-pointer select-none">
@@ -439,7 +440,7 @@ export function SessionList() {
                         onChange={(e) => setWorktreeCreate(e.target.checked)}
                         className="accent-accent-400"
                       />
-                      新建
+                      New
                     </label>
                     <button
                       onClick={() => void doCreateWorktree()}
@@ -516,7 +517,7 @@ export function SessionList() {
                             ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真删
                             : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
                         }
-                        title={confirmDel === t.id ? "再点一次确认关闭（不会删除磁盘文件夹）" : "关闭会话"}
+                        title={confirmDel === t.id ? "Click again to confirm close (the folder on disk is untouched)" : "Close session"}
                       >
                         <X size={12} />
                       </button>
@@ -533,9 +534,9 @@ export function SessionList() {
       <div className="px-3 py-2 border-t border-white/[0.06] shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] text-ink-5">
           <Puzzle size={12} />
-          插件（即将上线）
+          Plugins (coming soon)
         </div>
-        <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title="OpenCodex 版本">
+        <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title="OpenCodex version">
           v{__APP_VERSION__}
         </span>
       </div>
@@ -544,7 +545,7 @@ export function SessionList() {
       <div
         onPointerDown={beginResize}
         onDoubleClick={toggleCollapsed}
-        title="拖动调整会话栏宽度 · 双击收起"
+        title="Drag to resize the session bar · double-click to collapse"
         className="absolute top-0 right-0 bottom-0 w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-accent/50 transition-colors"
       />
     </aside>

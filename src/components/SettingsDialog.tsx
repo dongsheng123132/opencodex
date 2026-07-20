@@ -32,28 +32,28 @@ const PRESETS: { name: string; base_url: string; model: string; small_model: str
     base_url: "https://api.deepseek.com/anthropic",
     model: "deepseek-chat",
     small_model: "deepseek-chat",
-    hint: "platform.deepseek.com 申请 Key",
+    hint: "Get a key at platform.deepseek.com",
   },
   {
-    name: "智谱 GLM",
+    name: "Zhipu GLM",
     base_url: "https://open.bigmodel.cn/api/anthropic",
     model: "glm-4.6",
     small_model: "glm-4-flash",
-    hint: "bigmodel.cn 申请 Key",
+    hint: "Get a key at bigmodel.cn",
   },
   {
     name: "Kimi (Moonshot)",
     base_url: "https://api.moonshot.cn/anthropic",
     model: "kimi-k2-0905-preview",
     small_model: "moonshot-v1-8k",
-    hint: "platform.moonshot.cn 申请 Key",
+    hint: "Get a key at platform.moonshot.cn",
   },
   {
-    name: "Anthropic 官方",
+    name: "Anthropic Official",
     base_url: "https://api.anthropic.com",
     model: "claude-sonnet-4-6",
     small_model: "claude-haiku-4-5-20251001",
-    hint: "console.anthropic.com 申请 Key",
+    hint: "Get a key at console.anthropic.com",
   },
 ];
 
@@ -84,16 +84,16 @@ export function SettingsDialog({
     setForm((f) => ({ ...f, base_url: p.base_url, model: p.model, small_model: p.small_model }));
 
   const save = async () => {
-    if (!form.base_url.trim()) return onToast("请填写 Base URL");
+    if (!form.base_url.trim()) return onToast("Please enter a Base URL");
     setSaving(true);
     try {
       const s = await invoke<ConfigStatus>("set_config", { config: form });
       setStatus(s);
       setForm(s.config);
-      onToast("已保存，对话将使用你的模型");
+      onToast("Saved — sessions will use your model");
       onClose();
     } catch (e) {
-      onToast("保存失败：" + String(e));
+      onToast("Save failed: " + String(e));
     } finally {
       setSaving(false);
     }
@@ -108,7 +108,7 @@ export function SettingsDialog({
         <header className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <KeyRound size={16} className="text-accent" />
-            <h2 className="text-[15px] font-semibold text-ink-0">模型设置 · 自带模型</h2>
+            <h2 className="text-[15px] font-semibold text-ink-0">Model Settings · Bring Your Own Model</h2>
           </div>
           <button onClick={onClose} className="text-ink-4 hover:text-ink-1">
             <X size={18} />
@@ -118,14 +118,14 @@ export function SettingsDialog({
         <div className="px-5 py-4 space-y-4">
           {status && !status.claude_installed && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2.5 text-[12px] text-ink-1 leading-relaxed">
-              ⚠ 未检测到 <b>claude</b> 命令。对话功能需要先装 Claude Code CLI：
+              ⚠ The <b>claude</b> command was not found. Sessions require the Claude Code CLI:
               <code className="mx-1 px-1 rounded bg-black/30 font-mono">npm i -g @anthropic-ai/claude-code</code>
-              （终端面板里可直接运行）。
+              (you can run this right in the terminal panel).
             </div>
           )}
 
           <div>
-            <div className="text-[12px] text-ink-3 mb-2">快速填充（仅填表单，不发请求）</div>
+            <div className="text-[12px] text-ink-3 mb-2">Quick fill (fills the form only, sends no request)</div>
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
                 <button
@@ -140,7 +140,7 @@ export function SettingsDialog({
             </div>
           </div>
 
-          <Field label="Base URL" hint="任何 Anthropic 兼容端点">
+          <Field label="Base URL" hint="Any Anthropic-compatible endpoint">
             <input
               value={form.base_url}
               onChange={set("base_url")}
@@ -149,7 +149,7 @@ export function SettingsDialog({
             />
           </Field>
 
-          <Field label="API Key" hint="只存本地 ~/.opencodex/config.json，不上传">
+          <Field label="API Key" hint="Stored locally in ~/.opencodex/config.json, never uploaded">
             <input
               value={form.api_key}
               onChange={set("api_key")}
@@ -159,22 +159,22 @@ export function SettingsDialog({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="主模型" hint="ANTHROPIC_MODEL">
+            <Field label="Main model" hint="ANTHROPIC_MODEL">
               <input value={form.model} onChange={set("model")} placeholder="deepseek-chat" className="input" />
             </Field>
-            <Field label="小/快模型" hint="可选">
+            <Field label="Small / fast model" hint="Optional">
               <input value={form.small_model} onChange={set("small_model")} placeholder="deepseek-chat" className="input" />
             </Field>
           </div>
 
           <div className="text-[11px] text-ink-4 leading-relaxed">
-            仅保存到 <code className="font-mono">~/.opencodex/config.json</code>，只对 OpenCodex 启动的终端与 AI 子进程临时生效。
+            Saved only to <code className="font-mono">~/.opencodex/config.json</code>, and applied only to terminals and AI subprocesses launched by OpenCodex.
           </div>
         </div>
 
         <footer className="flex items-center justify-end gap-2 px-5 py-4 border-t border-white/[0.06]">
           <button onClick={onClose} className="px-3.5 h-9 rounded-lg border border-white/[0.10] text-ink-2 text-[13px] hover:bg-white/[0.04]">
-            取消
+            Cancel
           </button>
           <button
             onClick={save}
@@ -182,7 +182,7 @@ export function SettingsDialog({
             className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-600 disabled:opacity-60"
           >
             <Save size={14} />
-            {saving ? "保存中…" : "保存"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </footer>
       </div>

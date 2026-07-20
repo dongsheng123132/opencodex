@@ -163,14 +163,14 @@ export function SplitContainer({
             <div className="absolute top-9 right-1.5 z-10 flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
               <button
                 onClick={() => splitPane(pr.id, "row")}
-                title="左右分屏（再开一个终端）"
+                title="Split horizontally (open another terminal)"
                 className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
               >
                 <Columns2 size={13} />
               </button>
               <button
                 onClick={() => splitPane(pr.id, "col")}
-                title="上下分屏（再开一个终端）"
+                title="Split vertically (open another terminal)"
                 className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
               >
                 <Rows2 size={13} />
@@ -178,7 +178,7 @@ export function SplitContainer({
               {splitsCount > 0 && (
                 <button
                   onClick={() => closePane(pr.id)}
-                  title="关闭此格"
+                  title="Close this pane"
                   className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-danger-400 hover:bg-white/[0.08]"
                 >
                   <X size={13} />

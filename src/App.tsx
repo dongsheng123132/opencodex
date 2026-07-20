@@ -76,11 +76,11 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
       </div>
       <button
         onClick={onSettings}
-        title="模型设置"
+        title="Model Settings"
         className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
       >
         <Settings size={13} />
-        模型设置
+        Model Settings
       </button>
     </header>
   );

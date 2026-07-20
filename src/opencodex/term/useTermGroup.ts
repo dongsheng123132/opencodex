@@ -205,7 +205,7 @@ export function useTermGroup(opts: {
       s.sessionId = sid;
       return sid;
     } catch (e) {
-      s.term.writeln(`\x1b[31m打开终端失败: ${String(e)}\x1b[0m`);
+      s.term.writeln(`\x1b[31mFailed to open terminal: ${String(e)}\x1b[0m`);
       return null;
     }
   }, []);
@@ -241,7 +241,7 @@ export function useTermGroup(opts: {
       /* 不支持 WebGL（极少数环境）→ 用默认渲染，不影响功能 */
     }
 
-    const s: TermSession = { key, title: `终端 ${key}`, term, fit, sessionId: null, el, disposed: false, lastCols: 0, lastRows: 0 };
+    const s: TermSession = { key, title: `Terminal ${key}`, term, fit, sessionId: null, el, disposed: false, lastCols: 0, lastRows: 0 };
     term.onData((d) => {
       // —— 焦点上报泄漏防护（DECSET 1004）——
       // claude/codex 等 TUI 启用「焦点上报」(\e[?1004h) 后若崩溃/被杀，没机会发关闭序列

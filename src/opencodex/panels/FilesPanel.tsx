@@ -179,8 +179,8 @@ export function FilesPanel({
 
   const del = useCallback(
     async (e: Entry) => {
-      const ok = await ask(`删除「${e.name}」？会移到回收站，可恢复。`, {
-        title: "删除",
+      const ok = await ask(`Delete "${e.name}"? It will be moved to the Recycle Bin and can be restored.`, {
+        title: "Delete",
         kind: "warning",
       });
       if (!ok) return;
@@ -252,21 +252,21 @@ export function FilesPanel({
           <button
             onClick={() => startCreate(root, false)}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="新建文件"
+            title="New file"
           >
             <FilePlus size={12} />
           </button>
           <button
             onClick={() => startCreate(root, true)}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="新建文件夹"
+            title="New folder"
           >
             <FolderPlus size={12} />
           </button>
           <button
             onClick={refresh}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="刷新"
+            title="Refresh"
           >
             <RefreshCw size={12} />
           </button>
@@ -295,9 +295,9 @@ export function FilesPanel({
               <button
                 onClick={() => void invoke("open_path", { path: activePath })}
                 className="inline-flex items-center gap-1 shrink-0 px-1.5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
-                title="用系统默认程序打开"
+                title="Open with default app"
               >
-                <ExternalLink size={11} /> 打开
+                <ExternalLink size={11} /> Open
               </button>
             </div>
             <RedlinePanel
@@ -309,7 +309,7 @@ export function FilesPanel({
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-ink-4 text-[12px]">
-            单击文件预览 · 右键管理
+            Click a file to preview · right-click to manage
           </div>
         )}
       </div>
@@ -519,21 +519,21 @@ function ContextMenu({
         style={style}
         className="fixed z-50 min-w-[176px] py-1 rounded-lg border border-white/[0.10] bg-bg-2 shadow-xl text-[12.5px] text-ink-1"
       >
-        {isFile && <Item label="预览" onClick={run(onOpen)} />}
-        {isFile && <Item label="用默认程序打开" onClick={run(onOpenExternal)} />}
+        {isFile && <Item label="Preview" onClick={run(onOpen)} />}
+        {isFile && <Item label="Open with default app" onClick={run(onOpenExternal)} />}
         {isFile && <Sep />}
-        <Item label="新建文件" onClick={run(onNewFile)} />
-        <Item label="新建文件夹" onClick={run(onNewFolder)} />
+        <Item label="New file" onClick={run(onNewFile)} />
+        <Item label="New folder" onClick={run(onNewFolder)} />
         {e && <Sep />}
-        {e && <Item label="重命名" onClick={run(onRename)} />}
-        {e && <Item label="删除（回收站）" danger onClick={run(onDelete)} />}
+        {e && <Item label="Rename" onClick={run(onRename)} />}
+        {e && <Item label="Delete (to Recycle Bin)" danger onClick={run(onDelete)} />}
         {e && <Sep />}
-        {e && <Item label="复制" onClick={run(onCopy)} />}
-        {e && <Item label="剪切" onClick={run(onCut)} />}
-        {clip && <Item label={`粘贴「${clip.name}」`} onClick={run(onPaste)} />}
+        {e && <Item label="Copy" onClick={run(onCopy)} />}
+        {e && <Item label="Cut" onClick={run(onCut)} />}
+        {clip && <Item label={`Paste "${clip.name}"`} onClick={run(onPaste)} />}
         {e && <Sep />}
-        {e && <Item label="复制路径" onClick={run(onCopyPath)} />}
-        {e && <Item label="在资源管理器中显示" onClick={run(onReveal)} />}
+        {e && <Item label="Copy path" onClick={run(onCopyPath)} />}
+        {e && <Item label="Show in File Explorer" onClick={run(onReveal)} />}
       </div>
     </>
   );
