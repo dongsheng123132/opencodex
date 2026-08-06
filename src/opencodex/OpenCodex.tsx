@@ -12,6 +12,7 @@ import { WorkbenchProvider, useWorkbench } from "./store";
 import type { Task } from "./types";
 import { SessionList } from "./SessionList";
 import { ChatColumn } from "./SplitArea";
+import { useI18n } from "../i18n";
 
 type Props = {
   openedDir: string | null;
@@ -21,6 +22,7 @@ type Props = {
 };
 
 function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
+  const { t } = useI18n();
   const { state, addTask } = useWorkbench();
   const consumedDir = useRef<string | null>(null);
   const autoCreated = useRef(false);
@@ -41,7 +43,7 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
   }, [state.loaded, state.tasks.length, homeDir, addTask]);
 
   const pickFolder = async () => {
-    const dir = await openDialog({ directory: true, multiple: false, title: "Select a project folder" });
+    const dir = await openDialog({ directory: true, multiple: false, title: t("Select a project folder") });
     if (typeof dir === "string" && dir) await addTask(dir, "manual", false);
   };
 
@@ -51,18 +53,16 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
       <div className="flex-1 min-w-0 min-h-0 relative">
         {state.tasks.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">
-            <div className="text-ink-1 text-[15px] font-medium">Open a folder and get to work</div>
+            <div className="text-ink-1 text-[15px] font-medium">{t("Open a folder and get to work")}</div>
             <div className="text-ink-4 text-[13px] leading-relaxed max-w-sm">
-              Pick a folder — the main area is a real terminal running claude / codex.
-              Split left/right or top/bottom to run several at once, and slide out a file tree
-              or browser from the top bar when you need it.
+              {t("Pick a folder — the main area is a real terminal running claude / codex.\nSplit left/right or top/bottom to run several at once, and slide out a file tree\nor browser from the top bar when you need it.")}
             </div>
             <button
               onClick={pickFolder}
               className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-accent hover:bg-accent-600 text-white text-[13px] font-medium"
             >
               <FolderPlus size={15} />
-              New project (pick a folder)
+              {t("New project (pick a folder)")}
             </button>
           </div>
         ) : (

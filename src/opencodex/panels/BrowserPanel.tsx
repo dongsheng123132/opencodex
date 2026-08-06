@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ArrowUpRight, Globe, RefreshCw, ExternalLink } from "lucide-react";
+import { useI18n } from "../../i18n";
 
 const QUICK = [
   { label: "localhost:3000", url: "http://localhost:3000" },
@@ -22,6 +23,7 @@ const normalize = (raw: string) => {
 };
 
 export function BrowserPanel({ taskId }: { taskId: string }) {
+  const { t } = useI18n();
   const [url, setUrl] = useState("http://localhost:3000");
   const [loaded, setLoaded] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0); // 刷新 iframe 用
@@ -63,7 +65,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         {loaded && (
           <button
             onClick={() => setNonce((n) => n + 1)}
-            title="Refresh"
+            title={t("Refresh")}
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
           >
             <RefreshCw size={13} />
@@ -77,7 +79,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         </button>
         <button
           onClick={() => void openWindow(url)}
-          title="Open in a separate window (for pages that block embedding)"
+          title={t("Open in a separate window (for pages that block embedding)")}
           className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0 border-l border-white/[0.08] ml-0.5 pl-1"
         >
           <ExternalLink size={13} />
@@ -88,13 +90,13 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         <iframe
           key={nonce}
           src={loaded}
-          title="Preview"
+          title={t("Preview")}
           className="flex-1 w-full bg-white border-0"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
       ) : (
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-          <div className="text-ink-3 text-[13px]">Open a preview page embedded on the right (localhost works too)</div>
+          <div className="text-ink-3 text-[13px]">{t("Open a preview page embedded on the right (localhost works too)")}</div>
           <div className="flex flex-wrap gap-2 justify-center">
             {QUICK.map((q) => (
               <button
@@ -106,7 +108,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
               </button>
             ))}
           </div>
-          <div className="text-ink-5 text-[11px]">If the page is blank (embedding blocked), click ⬈ on the right of the address bar to open it in a separate window</div>
+          <div className="text-ink-5 text-[11px]">{t("If the page is blank (embedding blocked), click ⬈ on the right of the address bar to open it in a separate window")}</div>
         </div>
       )}
       {err && <div className="shrink-0 px-3 py-1.5 text-danger-400 text-[12px] border-t border-white/[0.06]">{err}</div>}

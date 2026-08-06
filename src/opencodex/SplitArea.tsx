@@ -13,6 +13,7 @@ import { useCallback, useRef } from "react";
 import { Columns2, Cpu, FolderTree, Globe, Rows2, X } from "lucide-react";
 import type { RightKind, Task } from "./types";
 import { useWorkbench } from "./store";
+import { useI18n } from "../i18n";
 import { SplitContainer, type SplitApi } from "./term/SplitContainer";
 import { FilesPanel } from "./panels/FilesPanel";
 import { BrowserPanel } from "./panels/BrowserPanel";
@@ -36,6 +37,7 @@ export function ChatColumn({
   onToast: (s: string) => void;
   onGoManage: () => void;
 }) {
+  const { t } = useI18n();
   const { state, setRight, toggleRight, setRatio } = useWorkbench();
   const layout = state.panels[task.id];
   // rightKind 现在只用于文件/浏览器；terminal 永远是主区。
@@ -105,14 +107,14 @@ export function ChatColumn({
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => splitApiRef.current?.splitLast("row")}
-            title="Split horizontally (open another terminal)"
+            title={t("Split horizontally (open another terminal)")}
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
           >
             <Columns2 size={14} />
           </button>
           <button
             onClick={() => splitApiRef.current?.splitLast("col")}
-            title="Split vertically (open another terminal)"
+            title={t("Split vertically (open another terminal)")}
             className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
           >
             <Rows2 size={14} />
@@ -122,11 +124,11 @@ export function ChatColumn({
         {/* 模型设置 */}
         <button
           onClick={onGoManage}
-          title="Model settings (bring your own model)"
+          title={t("Model settings (bring your own model)")}
           className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-[12px] transition-colors text-ink-3 hover:bg-white/[0.05] hover:text-ink-1 ml-1 pl-2 border-l border-white/[0.08]"
         >
           <Cpu size={13} />
-          <span className="hidden md:inline">Model</span>
+          <span className="hidden md:inline">{t("Model")}</span>
         </button>
 
         {/* 文件/浏览器开关 —— 点了才从右侧滑出 */}
@@ -145,7 +147,7 @@ export function ChatColumn({
                 }
               >
                 <Icon size={13} className={on ? "text-accent" : ""} />
-                <span className="hidden md:inline">{p.label}</span>
+                <span className="hidden md:inline">{t(p.label)}</span>
               </button>
             );
           })}
@@ -201,7 +203,8 @@ function SidePanel({
   /** Redline「发给终端」按钮用：把标注文字写进主区最后一个终端格（不回车）。 */
   pasteToTerminal: (text: string) => void;
 }) {
-  const label = kind === "files" ? "Files" : "Browser";
+  const { t } = useI18n();
+  const label = kind === "files" ? t("Files") : t("Browser");
   return (
     <div className="flex flex-col h-full min-h-0 min-w-0 border-l border-white/[0.06] bg-bg-2">
       <div className="flex items-center gap-2 h-9 px-3 border-b border-white/[0.06] bg-bg-1 shrink-0">
@@ -209,7 +212,7 @@ function SidePanel({
         <div className="flex-1" />
         <button
           onClick={onClose}
-          title="Collapse"
+          title={t("Collapse")}
           className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
         >
           <X size={15} />

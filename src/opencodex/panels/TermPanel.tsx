@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X, RotateCcw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useI18n } from "../../i18n";
 import { useTermGroup } from "../term/useTermGroup";
 import "@xterm/xterm/css/xterm.css";
 
@@ -55,6 +56,7 @@ export function TermPanel({
   /** 挂载后回调，透出 runCmd 给父级（一键启动 WebUI 等场景）。 */
   onReady?: (api: TermPanelApi) => void;
 }) {
+  const { t } = useI18n();
   const { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize, resetActive } = useTermGroup({
     open: active,
     cwd,
@@ -159,23 +161,23 @@ export function TermPanel({
       {/* 标签栏 */}
       <div className="flex items-center h-8 px-2 gap-1 border-b border-white/[0.06] bg-bg-1 shrink-0">
         <div className="flex items-center gap-1 min-w-0 shrink overflow-x-auto">
-          {tabs.map((t) => {
-            const pending = confirmKey === t.key;
+          {tabs.map((tab) => {
+            const pending = confirmKey === tab.key;
             return (
               <div
-                key={t.key}
-                onClick={() => setActiveKey(t.key)}
+                key={tab.key}
+                onClick={() => setActiveKey(tab.key)}
                 className={
                   "group flex items-center gap-1.5 h-6 pl-2.5 pr-1 rounded cursor-pointer text-[12px] shrink-0 " +
-                  (t.key === activeKey ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-white/[0.04]")
+                  (tab.key === activeKey ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-white/[0.04]")
                 }
               >
                 <span className="dot dot-on" />
-                <span className="whitespace-nowrap">{t.title}</span>
+                <span className="whitespace-nowrap">{tab.title}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCloseClick(t.key);
+                    onCloseClick(tab.key);
                   }}
                   className={
                     "inline-flex items-center justify-center w-4 h-4 rounded ml-0.5 transition-all " +
@@ -183,7 +185,7 @@ export function TermPanel({
                       ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真关
                       : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
                   }
-                  title={pending ? "Click again to confirm close" : "Close this terminal"}
+                  title={pending ? t("Click again to confirm close") : t("Close this terminal")}
                 >
                   <X size={11} />
                 </button>
@@ -193,7 +195,7 @@ export function TermPanel({
           <button
             onClick={() => newTerm()}
             className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-2 bg-white/[0.04] border border-white/[0.10] hover:text-ink-0 hover:bg-accent/[0.18] hover:border-accent/40 shrink-0 transition-colors"
-            title="New terminal tab"
+            title={t("New terminal tab")}
           >
             <Plus size={14} />
           </button>
@@ -202,16 +204,16 @@ export function TermPanel({
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(-1)}
-              title="Decrease font size (Ctrl -)"
+              title={t("Decrease font size (Ctrl -)")}
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               −
             </button>
-            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title="Current font size">{fontSize}</span>
+            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title={t("Current font size")}>{fontSize}</span>
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(1)}
-              title="Increase font size (Ctrl +)"
+              title={t("Increase font size (Ctrl +)")}
               className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               +
@@ -223,7 +225,7 @@ export function TermPanel({
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={resetActive}
-              title="Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash"
+              title={t("Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash")}
               className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
             >
               <RotateCcw size={13} />
@@ -243,7 +245,7 @@ export function TermPanel({
                 key={q.label}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => runInActive(q.cmd)}
-                title={`Run in terminal: ${q.cmd}`}
+                title={t("Run in terminal: {cmd}", { cmd: q.cmd })}
                 className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors shrink-0"
               >
                 {q.label}
@@ -254,14 +256,14 @@ export function TermPanel({
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
-                  title={`Run in terminal: ${q.cmd}`}
+                  title={t("Run in terminal: {cmd}", { cmd: q.cmd })}
                   className="h-6 pl-2 pr-2 rounded text-[11px] text-accent-400 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
                 >
                   {q.label}
                 </button>
                 <button
                   onClick={() => removeCustom(q.label)}
-                  title="Delete this shortcut"
+                  title={t("Delete this shortcut")}
                   className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-danger-500 text-white flex items-center justify-center transition-opacity"
                 >
                   <X size={9} />
@@ -272,7 +274,7 @@ export function TermPanel({
           {/* 添加按钮固定在最右，永远可见 */}
           <button
             onClick={() => setAdding((v) => !v)}
-            title="Add a custom shortcut"
+            title={t("Add a custom shortcut")}
             className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-white/[0.04] border border-white/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
           >
             <Plus size={11} />
@@ -282,20 +284,20 @@ export function TermPanel({
           {/* 添加弹层 */}
           {adding && (
             <div className="absolute right-0 top-8 z-40 w-60 rounded-card border border-white/[0.12] bg-bg-2 shadow-card p-2.5 space-y-2">
-              <div className="text-[11px] text-ink-3">Add a shortcut (clicking it sends the command to the terminal)</div>
+              <div className="text-[11px] text-ink-3">{t("Add a shortcut (clicking it sends the command to the terminal)")}</div>
               <input
                 autoFocus
                 value={draftLabel}
                 onChange={(e) => setDraftLabel(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustom()}
-                placeholder="Button label (e.g. /model)"
+                placeholder={t("Button label (e.g. /model)")}
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <input
                 value={draftCmd}
                 onChange={(e) => setDraftCmd(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustom()}
-                placeholder="Command to send (blank = same as label)"
+                placeholder={t("Command to send (blank = same as label)")}
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <div className="flex items-center justify-end gap-1.5">
@@ -324,7 +326,7 @@ export function TermPanel({
       <div ref={hostRef} className="relative flex-1 min-h-0 bg-[#0d0d0f]">
         {dragOver && (
           <div className="pointer-events-none absolute inset-1 z-20 rounded-md border-2 border-dashed border-accent/70 bg-accent/[0.08] flex items-center justify-center">
-            <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">Drop to insert the path into the command line</span>
+            <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">{t("Drop to insert the path into the command line")}</span>
           </div>
         )}
       </div>

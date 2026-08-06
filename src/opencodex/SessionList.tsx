@@ -11,6 +11,7 @@ import type { Task, TaskStatus } from "./types";
 import { dirBasename, normDir } from "./types";
 import { useWorkbench } from "./store";
 import { askConfirm } from "../lib/confirm";
+import { useI18n } from "../i18n";
 
 /**
  * 状态灯四态（对齐 U-King 0.9.83 测试报告 #008 的 Standby 一档）。
@@ -45,6 +46,7 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
 ];
 
 export function SessionList({ onToast }: { onToast?: (s: string) => void } = {}) {
+  const { t: tr } = useI18n();
   const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, reloadTasks, renameTask, activate } =
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
@@ -60,15 +62,15 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
         "import_uking_tasks",
       );
       if (!r.source_exists) {
-        onToast?.("No U-King workspace data found (~/.uking/tasks.json)");
+        onToast?.(tr("No U-King workspace data found (~/.uking/tasks.json)"));
       } else if (r.imported > 0) {
-        onToast?.(`Imported ${r.imported} project session(s) from U-King (${r.skipped} already present)`);
+        onToast?.(tr("Imported {n} project session(s) from U-King ({s} already present)", { n: r.imported, s: r.skipped }));
         reloadTasks(); // 后端已合并，重拉列表
       } else {
-        onToast?.(`Nothing to import — all ${r.skipped} U-King project(s) already here`);
+        onToast?.(tr("Nothing to import — all {n} U-King project(s) already here", { n: r.skipped }));
       }
     } catch (e) {
-      onToast?.(`Import failed: ${String(e)}`);
+      onToast?.(tr("Import failed: {e}", { e: String(e) }));
     } finally {
       setImporting(false);
     }
@@ -116,7 +118,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
   const onDelClick = async (id: string) => {
     if (chatted.has(id)) {
       const okd = await askConfirm(
-        "Close this session? It has a conversation history, which can't be recovered.\n(The folder on disk is untouched — only this session and its chat record go away.)",
+        tr("Close this session? It has a conversation history, which can't be recovered.\n(The folder on disk is untouched — only this session and its chat record go away.)"),
       );
       if (!okd) return;
     }
@@ -130,8 +132,8 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
     const chattedCount = ids.filter((id) => chatted.has(id)).length;
     const okd = await askConfirm(
       chattedCount > 0
-        ? `Close all ${ids.length} session(s) in this project? ${chattedCount} of them have conversation history that can't be recovered.\n(The folder on disk is untouched.)`
-        : `Close all ${ids.length} session(s) in this project? (None have chat history yet; the folder on disk is untouched.)`,
+        ? tr("Close all {n} session(s) in this project? {c} of them have conversation history that can't be recovered.\n(The folder on disk is untouched.)", { n: ids.length, c: chattedCount })
+        : tr("Close all {n} session(s) in this project? (None have chat history yet; the folder on disk is untouched.)", { n: ids.length }),
     );
     if (!okd) return;
     for (const id of ids) {
@@ -152,7 +154,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
   };
 
   const pickFolder = async () => {
-    const dir = await openDialog({ directory: true, multiple: false, title: "Select a project folder" });
+    const dir = await openDialog({ directory: true, multiple: false, title: tr("Select a project folder") });
     if (typeof dir === "string" && dir) await addTask(dir, "manual", false);
   };
 
@@ -161,7 +163,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
     const active = state.tasks.find((t) => t.id === state.activeId);
     const dir = active?.dir;
     if (dir) {
-      addSession(dir, "claude", "New Chat", "claude");
+      addSession(dir, "claude", tr("New chat"), "claude");
     } else {
       await pickFolder();
     }
@@ -202,7 +204,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
       setWorktreeRepoRoot(null);
       setWorktreeBranch("");
     } catch (e) {
-      alert(`Failed to create worktree: ${String(e)}`);
+      alert(tr("Failed to create worktree: {e}", { e: String(e) }));
     } finally {
       setWorktreeLoading(false);
     }
@@ -301,21 +303,21 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
       <aside className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06] bg-bg-1 min-h-0">
         <button
           onClick={toggleCollapsed}
-          title="Expand session bar"
+          title={tr("Expand session bar")}
           className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
         >
           <ChevronsRight size={16} />
         </button>
         <button
           onClick={newChat}
-          title="New chat"
+          title={tr("New chat")}
           className="w-8 h-8 grid place-items-center rounded text-accent-400 hover:bg-accent/[0.16]"
         >
           <MessageSquarePlus size={16} />
         </button>
         <button
           onClick={pickFolder}
-          title="New project (pick a folder)"
+          title={tr("New project (pick a folder)")}
           className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
         >
           <FolderPlus size={15} />
@@ -331,10 +333,10 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
     >
       {/* 顶部品牌条 + 收起按钮 */}
       <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Sessions</span>
+        <span className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{tr("Sessions")}</span>
         <button
           onClick={toggleCollapsed}
-          title="Collapse session bar (give the space to the terminal)"
+          title={tr("Collapse session bar (give the space to the terminal)")}
           className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
         >
           <ChevronsLeft size={14} />
@@ -348,27 +350,27 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
           className="w-full inline-flex items-center gap-2 h-8 px-2.5 rounded-card bg-accent/[0.14] text-accent-400 hover:bg-accent/[0.20] text-[12.5px] font-medium"
         >
           <MessageSquarePlus size={14} />
-          New chat
+          {tr("New chat")}
         </button>
         <button
           onClick={pickFolder}
           className="w-full inline-flex items-center gap-2 h-7 px-2.5 rounded-card text-ink-3 hover:bg-white/[0.04] text-[12px]"
-          title="Pick a folder to start a project"
+          title={tr("Pick a folder to start a project")}
         >
           <FolderPlus size={13} />
-          New project (pick a folder)
+          {tr("New project (pick a folder)")}
         </button>
       </div>
-      <div className="px-3 pb-1 shrink-0 text-[11px] text-ink-5">Open projects</div>
+      <div className="px-3 pb-1 shrink-0 text-[11px] text-ink-5">{tr("Open projects")}</div>
 
       <div className="flex-1 overflow-y-auto py-1.5 min-h-0">
         {state.tasks.length === 0 ? (
           <div className="px-3 py-6 text-center text-ink-4 text-[12px] leading-relaxed">
-            No projects yet.
+            {tr("No projects yet.")}
             <br />
-            Click "New" to pick a folder
+            {tr('Click "New" to pick a folder')}
             <br />
-            and put several AIs to work in it.
+            {tr("and put several AIs to work in it.")}
           </div>
         ) : (
           groups.map(([projKey, tasks]) => {
@@ -452,7 +454,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                       );
                     }}
                     className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
-                    title="Delete the whole project (removes all its sessions; the folder on disk is untouched)"
+                    title={tr("Delete the whole project (removes all its sessions; the folder on disk is untouched)")}
                   >
                     <Trash2 size={12} />
                   </button>
@@ -477,7 +479,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                           ? "opacity-100 text-accent-400 bg-accent/[0.12]"
                           : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]")
                       }
-                      title="New worktree (work on another branch in parallel)"
+                      title={tr("New worktree (work on another branch in parallel)")}
                     >
                       <GitBranch size={12} />
                     </button>
@@ -487,7 +489,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                       <button
                         onClick={() => setAddMenuFor(addMenuFor === projKey ? null : projKey)}
                         className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]"
-                        title="Open a new AI session in this project"
+                        title={tr("Open a new AI session in this project")}
                       >
                         <Plus size={12} />
                       </button>
@@ -523,7 +525,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                         if (e.key === "Enter") void doCreateWorktree();
                         if (e.key === "Escape") setWorktreeInputFor(null);
                       }}
-                      placeholder="Branch name (Enter to confirm)"
+                      placeholder={tr("Branch name (Enter to confirm)")}
                       className="flex-1 min-w-0 bg-transparent text-[11.5px] text-ink-1 placeholder:text-ink-5 outline-none"
                     />
                     <label className="flex items-center gap-1 text-[10.5px] text-ink-4 shrink-0 cursor-pointer select-none">
@@ -533,7 +535,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                         onChange={(e) => setWorktreeCreate(e.target.checked)}
                         className="accent-accent-400"
                       />
-                      New
+                      {tr("New")}
                     </label>
                     <button
                       onClick={() => void doCreateWorktree()}
@@ -595,7 +597,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                     >
                       <span
                         className={"dot " + statusDot(t.status, chatted.has(t.id))}
-                        title={statusTitle(t.status, chatted.has(t.id))}
+                        title={tr(statusTitle(t.status, chatted.has(t.id)))}
                       />
                       {renaming?.id === t.id ? (
                         // 重命名输入框：拦掉 click/pointerdown，否则会触发选中会话和拖拽
@@ -625,7 +627,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                             e.stopPropagation();
                             setRenaming({ id: t.id, text: t.name || dirBasename(t.dir) });
                           }}
-                          title="Double-click to rename"
+                          title={tr("Double-click to rename")}
                           className={"flex-1 min-w-0 truncate text-[12.5px] " + (on ? "text-ink-0" : "text-ink-1")}
                         >
                           {t.worktree_branch
@@ -639,7 +641,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
                           void onDelClick(t.id);
                         }}
                         className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
-                        title="Close session (asks first if it has history; the folder on disk is untouched)"
+                        title={tr("Close session (asks first if it has history; the folder on disk is untouched)")}
                       >
                         <X size={12} />
                       </button>
@@ -656,19 +658,19 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
       <div className="px-3 py-2 border-t border-white/[0.06] shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] text-ink-5">
           <Puzzle size={12} />
-          Plugins (coming soon)
+          {tr("Plugins (coming soon)")}
         </div>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => void importFromUking()}
             disabled={importing}
-            title="Import projects & sessions from U-King workspace (~/.uking/tasks.json)"
+            title={tr("Import projects & sessions from U-King workspace (~/.uking/tasks.json)")}
             className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-ink-5 hover:text-ink-2 hover:bg-white/[0.05] disabled:opacity-40"
           >
             <Download size={11} />
-            {importing ? "Importing…" : "Import U-King"}
+            {importing ? tr("Importing…") : tr("Import U-King")}
           </button>
-          <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title="OpenCodex version">
+          <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title={tr("OpenCodex version")}>
             v{__APP_VERSION__}
           </span>
         </div>
@@ -678,7 +680,7 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
       <div
         onPointerDown={beginResize}
         onDoubleClick={toggleCollapsed}
-        title="Drag to resize the session bar · double-click to collapse"
+        title={tr("Drag to resize the session bar · double-click to collapse")}
         className="absolute top-0 right-0 bottom-0 w-1.5 translate-x-1/2 z-20 cursor-col-resize hover:bg-accent/50 transition-colors"
       />
     </aside>

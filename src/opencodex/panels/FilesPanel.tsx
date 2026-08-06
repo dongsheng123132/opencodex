@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { useI18n } from "../../i18n";
 import {
   ChevronDown,
   ChevronRight,
@@ -67,6 +68,7 @@ export function FilesPanel({
   /** Redline「发给终端」按钮用：把标注文字写进主区最后一个终端格（不回车）。 */
   pasteToTerminal: (text: string) => void;
 }) {
+  const { t } = useI18n();
   const [cache, setCache] = useState<Record<string, Entry[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -252,21 +254,21 @@ export function FilesPanel({
           <button
             onClick={() => startCreate(root, false)}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="New file"
+            title={t("New file")}
           >
             <FilePlus size={12} />
           </button>
           <button
             onClick={() => startCreate(root, true)}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="New folder"
+            title={t("New folder")}
           >
             <FolderPlus size={12} />
           </button>
           <button
             onClick={refresh}
             className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
-            title="Refresh"
+            title={t("Refresh")}
           >
             <RefreshCw size={12} />
           </button>
@@ -295,9 +297,9 @@ export function FilesPanel({
               <button
                 onClick={() => void invoke("open_path", { path: activePath })}
                 className="inline-flex items-center gap-1 shrink-0 px-1.5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
-                title="Open with default app"
+                title={t("Open with default app")}
               >
-                <ExternalLink size={11} /> Open
+                <ExternalLink size={11} /> {t("Open")}
               </button>
             </div>
             <RedlinePanel
@@ -501,6 +503,7 @@ function ContextMenu({
   onReveal: () => void;
   onOpenExternal: () => void;
 }) {
+  const { t } = useI18n();
   const e = menu.entry;
   const isFile = !!e && !e.is_dir;
   const run = (fn: () => void) => () => {
@@ -519,21 +522,21 @@ function ContextMenu({
         style={style}
         className="fixed z-50 min-w-[176px] py-1 rounded-lg border border-white/[0.10] bg-bg-2 shadow-xl text-[12.5px] text-ink-1"
       >
-        {isFile && <Item label="Preview" onClick={run(onOpen)} />}
-        {isFile && <Item label="Open with default app" onClick={run(onOpenExternal)} />}
+        {isFile && <Item label={t("Preview")} onClick={run(onOpen)} />}
+        {isFile && <Item label={t("Open with default app")} onClick={run(onOpenExternal)} />}
         {isFile && <Sep />}
-        <Item label="New file" onClick={run(onNewFile)} />
-        <Item label="New folder" onClick={run(onNewFolder)} />
+        <Item label={t("New file")} onClick={run(onNewFile)} />
+        <Item label={t("New folder")} onClick={run(onNewFolder)} />
         {e && <Sep />}
-        {e && <Item label="Rename" onClick={run(onRename)} />}
-        {e && <Item label="Delete (to Recycle Bin)" danger onClick={run(onDelete)} />}
+        {e && <Item label={t("Rename")} onClick={run(onRename)} />}
+        {e && <Item label={t("Delete (to Recycle Bin)")} danger onClick={run(onDelete)} />}
         {e && <Sep />}
-        {e && <Item label="Copy" onClick={run(onCopy)} />}
-        {e && <Item label="Cut" onClick={run(onCut)} />}
-        {clip && <Item label={`Paste "${clip.name}"`} onClick={run(onPaste)} />}
+        {e && <Item label={t("Copy")} onClick={run(onCopy)} />}
+        {e && <Item label={t("Cut")} onClick={run(onCut)} />}
+        {clip && <Item label={t('Paste "{name}"', { name: clip.name })} onClick={run(onPaste)} />}
         {e && <Sep />}
-        {e && <Item label="Copy path" onClick={run(onCopyPath)} />}
-        {e && <Item label="Show in File Explorer" onClick={run(onReveal)} />}
+        {e && <Item label={t("Copy path")} onClick={run(onCopyPath)} />}
+        {e && <Item label={t("Show in File Explorer")} onClick={run(onReveal)} />}
       </div>
     </>
   );

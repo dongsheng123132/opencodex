@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X, Save, KeyRound } from "lucide-react";
+import { useI18n } from "../i18n";
 
 type ModelConfig = {
   base_url: string;
@@ -64,6 +65,7 @@ export function SettingsDialog({
   onToast: (s: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [form, setForm] = useState<ModelConfig>({ base_url: "", api_key: "", model: "", small_model: "" });
   const [saving, setSaving] = useState(false);
@@ -84,16 +86,16 @@ export function SettingsDialog({
     setForm((f) => ({ ...f, base_url: p.base_url, model: p.model, small_model: p.small_model }));
 
   const save = async () => {
-    if (!form.base_url.trim()) return onToast("Please enter a Base URL");
+    if (!form.base_url.trim()) return onToast(t("Please enter a Base URL"));
     setSaving(true);
     try {
       const s = await invoke<ConfigStatus>("set_config", { config: form });
       setStatus(s);
       setForm(s.config);
-      onToast("Saved — sessions will use your model");
+      onToast(t("Saved — sessions will use your model"));
       onClose();
     } catch (e) {
-      onToast("Save failed: " + String(e));
+      onToast(t("Save failed: {e}", { e: String(e) }));
     } finally {
       setSaving(false);
     }
@@ -108,7 +110,7 @@ export function SettingsDialog({
         <header className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <KeyRound size={16} className="text-accent" />
-            <h2 className="text-[15px] font-semibold text-ink-0">Model Settings · Bring Your Own Model</h2>
+            <h2 className="text-[15px] font-semibold text-ink-0">{t("Model Settings · Bring Your Own Model")}</h2>
           </div>
           <button onClick={onClose} className="text-ink-4 hover:text-ink-1">
             <X size={18} />
@@ -125,13 +127,13 @@ export function SettingsDialog({
           )}
 
           <div>
-            <div className="text-[12px] text-ink-3 mb-2">Quick fill (fills the form only, sends no request)</div>
+            <div className="text-[12px] text-ink-3 mb-2">{t("Quick fill (fills the form only, sends no request)")}</div>
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
                 <button
                   key={p.name}
                   onClick={() => applyPreset(p)}
-                  title={p.hint}
+                  title={t(p.hint)}
                   className="px-2.5 h-7 rounded-md border border-white/[0.10] text-ink-2 text-[12px] hover:bg-white/[0.04] hover:text-ink-0"
                 >
                   {p.name}
@@ -140,7 +142,7 @@ export function SettingsDialog({
             </div>
           </div>
 
-          <Field label="Base URL" hint="Any Anthropic-compatible endpoint">
+          <Field label={t("Base URL")} hint={t("Any Anthropic-compatible endpoint")}>
             <input
               value={form.base_url}
               onChange={set("base_url")}
@@ -149,7 +151,7 @@ export function SettingsDialog({
             />
           </Field>
 
-          <Field label="API Key" hint="Stored locally in ~/.opencodex/config.json, never uploaded">
+          <Field label={t("API Key")} hint={t("Stored locally in ~/.opencodex/config.json, never uploaded")}>
             <input
               value={form.api_key}
               onChange={set("api_key")}
@@ -159,22 +161,22 @@ export function SettingsDialog({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Main model" hint="ANTHROPIC_MODEL">
+            <Field label={t("Main model")} hint="ANTHROPIC_MODEL">
               <input value={form.model} onChange={set("model")} placeholder="deepseek-chat" className="input" />
             </Field>
-            <Field label="Small / fast model" hint="Optional">
+            <Field label={t("Small / fast model")} hint={t("Optional")}>
               <input value={form.small_model} onChange={set("small_model")} placeholder="deepseek-chat" className="input" />
             </Field>
           </div>
 
           <div className="text-[11px] text-ink-4 leading-relaxed">
-            Saved only to <code className="font-mono">~/.opencodex/config.json</code>, and applied only to terminals and AI subprocesses launched by OpenCodex.
+            {t("Saved only to ~/.opencodex/config.json, and applied only to terminals and AI subprocesses launched by OpenCodex.")}
           </div>
         </div>
 
         <footer className="flex items-center justify-end gap-2 px-5 py-4 border-t border-white/[0.06]">
           <button onClick={onClose} className="px-3.5 h-9 rounded-lg border border-white/[0.10] text-ink-2 text-[13px] hover:bg-white/[0.04]">
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             onClick={save}
@@ -182,7 +184,7 @@ export function SettingsDialog({
             className="inline-flex items-center gap-1.5 px-4 h-9 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-600 disabled:opacity-60"
           >
             <Save size={14} />
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </button>
         </footer>
       </div>

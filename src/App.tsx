@@ -7,9 +7,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings, Sparkles } from "lucide-react";
+import { Languages, Settings, Sparkles } from "lucide-react";
 import { OpenCodex } from "./opencodex/OpenCodex";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { useI18n } from "./i18n";
 
 type AppEnv = {
   platform: string;
@@ -63,6 +64,7 @@ export function App() {
 /* ---------------- 自定义标题栏 ---------------- */
 
 function TitleBar({ onSettings }: { onSettings: () => void }) {
+  const { t, lang, setLang } = useI18n();
   return (
     <header
       data-tauri-drag-region
@@ -74,14 +76,24 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
         </span>
         <span className="text-[12px] font-semibold text-ink-1 tracking-wide">OpenCodex</span>
       </div>
-      <button
-        onClick={onSettings}
-        title="Model Settings"
-        className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
-      >
-        <Settings size={13} />
-        Model Settings
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+          title="Switch language / 切换语言"
+          className="pointer-events-auto inline-flex items-center gap-1 px-2 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
+        >
+          <Languages size={12} />
+          {lang === "zh" ? "EN" : "中文"}
+        </button>
+        <button
+          onClick={onSettings}
+          title={t("Model Settings")}
+          className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
+        >
+          <Settings size={13} />
+          {t("Model Settings")}
+        </button>
+      </div>
     </header>
   );
 }
