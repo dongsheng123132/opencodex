@@ -11,6 +11,7 @@
     "core:window:allow-set-focus",
     "core:webview:allow-create-webview-window",
     "dialog:default",
+    "dialog:allow-confirm",
     "shell:allow-open"
   ]
 }

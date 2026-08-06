@@ -40,3 +40,16 @@ pub fn kv_set(key: String, value: Option<String>) -> Result<(), String> {
     let s = serde_json::to_string_pretty(&all).map_err(|e| format!("序列化 kv 失败: {e}"))?;
     std::fs::write(kv_path(), s).map_err(|e| format!("写入 kv.json 失败: {e}"))
 }
+
+/// 列出所有以 prefix 开头的 key（按 key 排序，保证稳定）。
+/// 会话 Standby 判定用：扫 `agent.session.<task_id>` 前缀，找出「聊过」的任务。
+#[tauri::command]
+pub fn kv_keys_with_prefix(prefix: String) -> Vec<String> {
+    let mut keys: Vec<String> = read_all()
+        .into_iter()
+        .filter(|(k, _)| k.starts_with(&prefix))
+        .map(|(k, _)| k)
+        .collect();
+    keys.sort();
+    keys
+}

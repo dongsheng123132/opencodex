@@ -52,6 +52,17 @@
   .dot-warn {
     background: #d6a200;
   }
+  /* Standby：聊过、当前空闲 —— 黄灯，和「全新会话」的灰灯明确分开（U-King 测试报告 #008）。
+     带一圈同色柔光，让它在灰灯旁边一眼能认出来，而不是「稍微浅一点的灰」。 */
+  .dot-standby {
+    background: #d6a200;
+    box-shadow: 0 0 0 2px rgb(214 162 0 / 0.22);
+  }
+  /* 出错本来就该是红的（老代码注释写着「error 红」，实际复用了 dot-warn 的黄，
+     跟 Standby 撞色会让「出错」和「待命」看起来一样）。 */
+  .dot-error {
+    background: #dc2626;
+  }
 
   /* 设置弹层输入框 */
   .input {

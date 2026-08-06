@@ -23,15 +23,58 @@ use serde_json::Value;
 use tauri::ipc::Channel;
 
 use crate::config;
+use crate::kv;
 use crate::paths::{path_prefix, resolve_exe};
 use crate::proxy;
 
 use super::protocol::ProtocolState;
 
 /// 每个任务记住最近一轮的 claude session_id（用于 --resume 多轮续接）。
+/// 同时落盘 kv.json（`agent.session.<task_id>`）：重启后 Standby 灯和 --resume 都不丢。
 fn last_sessions() -> &'static Mutex<HashMap<String, String>> {
     static S: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
     S.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 取某任务最近的 session_id：先查内存，miss 则回源 kv.json（重启恢复）。
+fn load_session(task_id: &str) -> Option<String> {
+    if let Ok(m) = last_sessions().lock() {
+        if let Some(sid) = m.get(task_id) {
+            return Some(sid.clone());
+        }
+    }
+    let sid = kv::kv_get(format!("agent.session.{task_id}"));
+    if let Some(s) = &sid {
+        if let Ok(mut m) = last_sessions().lock() {
+            m.insert(task_id.to_string(), s.clone());
+        }
+    }
+    sid
+}
+
+/// 记住 session_id：内存 + kv.json 双写（同一事实两份，但 kv 是落盘副本，不算漂移）。
+fn remember_session(task_id: &str, sid: &str) {
+    if let Ok(mut m) = last_sessions().lock() {
+        m.insert(task_id.to_string(), sid.to_string());
+    }
+    let _ = kv::kv_set(format!("agent.session.{task_id}"), Some(sid.to_string()));
+}
+
+/// 忘掉 session_id：内存 + kv.json 双清。
+fn forget_session(task_id: &str) {
+    if let Ok(mut m) = last_sessions().lock() {
+        m.remove(task_id);
+    }
+    let _ = kv::kv_set(format!("agent.session.{task_id}"), None);
+}
+
+/// 哪些任务「聊过」—— 扫 kv 前缀，返回 task_id 列表。前端 SessionList 的 Standby 灯用它。
+#[tauri::command]
+pub fn chatted_tasks() -> Vec<String> {
+    kv::kv_keys_with_prefix("agent.session.".to_string())
+        .into_iter()
+        .map(|k| k.trim_start_matches("agent.session.").to_string())
+        .collect()
 }
 
 /// 正在运行的 claude 子进程（用于中断）。task_id -> Child。
@@ -87,11 +130,8 @@ fn run_turn(
     model: Option<String>,
     on_event: Channel<Value>,
 ) -> Result<(), String> {
-    // 取上一轮 session_id（有则 --resume 续接）
-    let resume = last_sessions()
-        .lock()
-        .ok()
-        .and_then(|m| m.get(&task_id).cloned());
+    // 取上一轮 session_id（有则 --resume 续接；重启后从 kv.json 恢复）
+    let resume = load_session(&task_id);
 
     let mut c = base_command("claude");
     c.arg("--output-format").arg("stream-json")
@@ -153,12 +193,10 @@ fn run_turn(
                 continue; // 非 JSON 行（极少）忽略
             };
             for ev in state.map_event(&v) {
-                // 记住 session_id 供下轮 --resume
+                // 记住 session_id 供下轮 --resume（内存 + kv.json 双写，重启不丢）
                 if ev.get("kind").and_then(|k| k.as_str()) == Some("session") {
                     if let Some(sid) = ev.get("session_id").and_then(|s| s.as_str()) {
-                        if let Ok(mut m) = last_sessions().lock() {
-                            m.insert(task_id.clone(), sid.to_string());
-                        }
+                        remember_session(&task_id, sid);
                     }
                 }
                 let _ = on_event.send(ev);
@@ -217,8 +255,6 @@ pub fn claude_interrupt(task_id: String) -> Result<(), String> {
 /// 清掉某任务的多轮上下文（下次从新会话开始，不 --resume）。
 #[tauri::command]
 pub fn claude_reset(task_id: String) -> Result<(), String> {
-    if let Ok(mut m) = last_sessions().lock() {
-        m.remove(&task_id);
-    }
+    forget_session(&task_id);
     Ok(())
 }

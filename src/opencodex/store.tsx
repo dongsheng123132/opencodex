@@ -132,6 +132,8 @@ type Ctx = {
   addWorktree: (repoDir: string, branch: string, createBranch: boolean) => Promise<void>;
   /** 按给定 id 顺序重排左侧列表，并把任务型会话的顺序落盘。 */
   reorderTasks: (ids: string[]) => void;
+  /** 重命名会话显示名（纯展示，空名/原名忽略）。 */
+  renameTask: (id: string, name: string) => Promise<void>;
   activate: (id: string) => void;
   setRight: (id: string, kind: RightKind) => void;
   toggleRight: (id: string, open?: boolean) => void;
@@ -289,6 +291,21 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
     void invoke("reorder_tasks", { ids }).catch(() => {});
   }, []);
 
+  // 重命名：存一个空名字会让左侧列表出现一行点不中的空白，比不给改还糟。
+  const renameTask = useCallback(
+    async (id: string, name: string) => {
+      const next = name.trim();
+      if (!next) return;
+      const cur = state.tasks.find((x) => x.id === id);
+      if (!cur || cur.name === next) return;
+      const task = { ...cur, name: next };
+      dispatch({ type: "upsert", task });
+      // 失败不回滚内存：名字是纯展示，下次重启顶多回到旧名，不值得为它闪一次 UI。
+      await invoke("upsert_task", { task }).catch(() => {});
+    },
+    [state.tasks],
+  );
+
   const activate = useCallback((id: string) => dispatch({ type: "activate", id }), []);
   const setRight = useCallback((id: string, kind: RightKind) => dispatch({ type: "setRight", id, kind }), []);
   const toggleRight = useCallback((id: string, open?: boolean) => dispatch({ type: "toggleRight", id, open }), []);
@@ -306,6 +323,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         removeTask,
         removeProject,
         reorderTasks,
+        renameTask,
         addWorktree,
         activate,
         setRight,

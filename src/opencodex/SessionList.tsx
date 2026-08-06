@@ -4,17 +4,36 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
 import { dirBasename, normDir } from "./types";
 import { useWorkbench } from "./store";
+import { askConfirm } from "../lib/confirm";
 
-function statusDot(s: TaskStatus): string {
+/**
+ * 状态灯四态（对齐 U-King 0.9.83 测试报告 #008 的 Standby 一档）。
+ *
+ * 老逻辑只有「跑着=绿 / 其余=灰」，于是**聊过一半、随时能接着聊**的会话跟一个空白新会话
+ * 长得一模一样 —— 用户读到的是「离线」，实际它只是这一秒没在说话。这不是审美问题：
+ * 灰色会让人以为得重开一个，于是同一个文件夹开出好几个会话。
+ *
+ *   在线     dot-on       正在跑
+ *   Standby dot-standby  有对话历史、当前空闲 —— 点进去就接着聊（--resume 真的续得上）
+ *   离线     dot-off      全新会话，一句话都没说过
+ *   出错     dot-error    上一轮失败
+ */
+function statusDot(s: TaskStatus, hasHistory: boolean): string {
   if (s === "running") return "dot-on";
-  if (s === "error") return "dot-warn";
-  return "dot-off";
+  if (s === "error") return "dot-error";
+  return hasHistory ? "dot-standby" : "dot-off";
+}
+
+function statusTitle(s: TaskStatus, hasHistory: boolean): string {
+  if (s === "running") return "Running";
+  if (s === "error") return "Last run failed";
+  return hasHistory ? "Standby — has history, click to resume" : "Idle — no messages yet";
 }
 
 const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
@@ -26,9 +45,28 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
 ];
 
 export function SessionList() {
-  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, activate } =
+  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, renameTask, activate } =
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
+
+  // 正在重命名的会话 id + 输入框内容（对齐 U-King 测试报告 #016）。双击名字进入，
+  // 回车/失焦保存，Esc 取消。
+  const [renaming, setRenaming] = useState<{ id: string; text: string } | null>(null);
+
+  // Standby 灯的依据：哪些会话有对话历史。session_id 落在后端 kv.json（agent.session.<task_id>），
+  // 聊过就有，重启也不丢。挂在 tasks + activeId 上重算 —— 从某个会话切走时它多半刚聊过。
+  const [chatted, setChatted] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    invoke<string[]>("chatted_tasks")
+      .then((ids) => {
+        if (alive) setChatted(new Set(ids));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [state.tasks, state.activeId]);
 
   // git repo 检测缓存：projKey → boolean。首次渲染某个项目时异步检测，后续不重复。
   const [gitRepos, setGitRepos] = useState<Record<string, boolean>>({});
@@ -41,36 +79,40 @@ export function SessionList() {
   const [worktreeCreate, setWorktreeCreate] = useState(false);
   const [worktreeLoading, setWorktreeLoading] = useState(false);
 
-  // 关闭会话防误触：第一次点 × 进入待确认（按钮变红），2 秒内再点一次才真删，
-  // 否则自动撤销。避免手滑把会话卡片（连同布局/终端）一下点没了。
-  // 注意：删的只是 OpenCodex 里的会话记录，绝不动磁盘上的文件夹。
-  const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const delTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onDelClick = (id: string) => {
-    if (confirmDel === id) {
-      if (delTimer.current) clearTimeout(delTimer.current);
-      setConfirmDel(null);
-      void removeTask(id);
-    } else {
-      setConfirmDel(id);
-      if (delTimer.current) clearTimeout(delTimer.current);
-      delTimer.current = setTimeout(() => setConfirmDel(null), 2000);
+  // 关闭会话 —— **聊过的一律弹真确认框**（`askConfirm`，不是「再点一次」的土办法）。
+  //
+  // 原来是点两次红叉：一个小按钮变个色，2 秒内再点一次就没了。问题不在「能不能防手滑」，
+  // 在**它什么都没告诉你**：你不知道这一下要丢的是几十轮对话还是一个空壳。而 `removeTask`
+  // 之后那份 session 记录就再也回不来了 —— 新建同文件夹的会话拿的是新 id，历史找不回。
+  // 这种代价必须先说清楚再问。
+  //
+  // **空会话不弹框**：一句话都没说过的会话（无 session_id），拦一下纯属烦人。有历史才拦。
+  // `askConfirm` fail-closed（弹不出来 = 当成没同意），绝不会出现「没问就删了」。
+  const onDelClick = async (id: string) => {
+    if (chatted.has(id)) {
+      const okd = await askConfirm(
+        "Close this session? It has a conversation history, which can't be recovered.\n(The folder on disk is untouched — only this session and its chat record go away.)",
+      );
+      if (!okd) return;
     }
+    // 清掉它的 session 记录（否则 kv.json 里留个孤儿 key，Standby 判定会误判）
+    await invoke("kv_set", { key: `agent.session.${id}`, value: null }).catch(() => {});
+    void removeTask(id);
   };
 
-  // 整组删除：和单会话删除同样的「点两次确认」防误触。删的仍只是会话记录，不动磁盘文件夹。
-  const [confirmDelGroup, setConfirmDelGroup] = useState<string | null>(null);
-  const delGroupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onDelGroupClick = (projKey: string, ids: string[]) => {
-    if (confirmDelGroup === projKey) {
-      if (delGroupTimer.current) clearTimeout(delGroupTimer.current);
-      setConfirmDelGroup(null);
-      void removeProject(ids);
-    } else {
-      setConfirmDelGroup(projKey);
-      if (delGroupTimer.current) clearTimeout(delGroupTimer.current);
-      delGroupTimer.current = setTimeout(() => setConfirmDelGroup(null), 2000);
+  // 整组删除：比关单个更狠（一次干掉整个项目下所有会话），同样先算清代价再问。
+  const onDelGroupClick = async (_projKey: string, ids: string[]) => {
+    const chattedCount = ids.filter((id) => chatted.has(id)).length;
+    const okd = await askConfirm(
+      chattedCount > 0
+        ? `Close all ${ids.length} session(s) in this project? ${chattedCount} of them have conversation history that can't be recovered.\n(The folder on disk is untouched.)`
+        : `Close all ${ids.length} session(s) in this project? (None have chat history yet; the folder on disk is untouched.)`,
+    );
+    if (!okd) return;
+    for (const id of ids) {
+      await invoke("kv_set", { key: `agent.session.${id}`, value: null }).catch(() => {});
     }
+    void removeProject(ids);
   };
 
   // 拖拽排序：dragRef 存当前拖的是「项目组」还是「组内会话」；over* 仅作落点高亮。
@@ -182,6 +224,23 @@ export function SessionList() {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem("opencodex.sidebar.collapsed") === "1",
   );
+
+  // 单个项目组的折叠（缩进/隐藏）：纯视图偏好，按 projKey 记在 localStorage，不进 tasks.json。
+  // 点项目头前面的箭头 = 把该项目下的会话收起来，给别的项目腾地方；再点展开。
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("opencodex.groups.collapsed") || "{}") || {};
+    } catch {
+      return {};
+    }
+  });
+  const toggleGroup = (projKey: string) =>
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [projKey]: !prev[projKey] };
+      if (!next[projKey]) delete next[projKey]; // 展开态不落盘，键表保持精简
+      try { localStorage.setItem("opencodex.groups.collapsed", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   const widthRef = useRef(width);
   widthRef.current = width;
   const toggleCollapsed = () =>
@@ -299,6 +358,8 @@ export function SessionList() {
             // 有 worktree 任务 → 已知是 git repo；否则查检测缓存
             const isGitProject =
               !!anyWorktreeTask || (repoRoot ? !!gitRepos[normDir(repoRoot)] : false);
+            // 该项目组是否折叠（缩进隐藏其会话）
+            const groupCollapsed = !!collapsedGroups[projKey];
 
             return (
               <div
@@ -334,13 +395,29 @@ export function SessionList() {
                     (overGroup === projKey ? "border-accent" : "border-transparent")
                   }
                 >
+                  {/* 折叠箭头：点一下把该项目的会话缩进隐藏，再点展开 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroup(projKey);
+                    }}
+                    className="inline-flex items-center justify-center w-4 h-4 -ml-1 shrink-0 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                    title={groupCollapsed ? "Expand this project" : "Collapse this project"}
+                  >
+                    {groupCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                  </button>
                   <GripVertical
                     size={11}
-                    className="shrink-0 -ml-1 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity"
                   />
                   <span className="flex-1 min-w-0 truncate font-medium" title={projDisplayDir}>
                     {projName}
                   </span>
+                  {groupCollapsed && (
+                    <span className="shrink-0 text-[10px] text-ink-5 tabular-nums px-1" title={`${tasks.length} session(s) hidden`}>
+                      {tasks.length}
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -349,17 +426,8 @@ export function SessionList() {
                         tasks.map((t) => t.id),
                       );
                     }}
-                    className={
-                      "inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all " +
-                      (confirmDelGroup === projKey
-                        ? "opacity-100 bg-danger-500/90 text-white"
-                        : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
-                    }
-                    title={
-                      confirmDelGroup === projKey
-                        ? "Click again: remove all sessions in this project (the folder on disk is not deleted)"
-                        : "Delete the whole project (removes all its sessions; the folder on disk is untouched)"
-                    }
+                    className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                    title="Delete the whole project (removes all its sessions; the folder on disk is untouched)"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -419,7 +487,7 @@ export function SessionList() {
                 </div>
 
                 {/* worktree 分支输入行（内联展开，不弹新窗口） */}
-                {worktreeInputFor === projKey && (
+                {!groupCollapsed && worktreeInputFor === projKey && (
                   <div className="mx-1.5 mb-1 flex items-center gap-1 px-2 py-1 rounded-card bg-white/[0.04] border border-white/[0.08]">
                     <GitBranch size={11} className="shrink-0 text-accent-400" />
                     <input
@@ -461,8 +529,8 @@ export function SessionList() {
                   </div>
                 )}
 
-                {/* 该项目的会话 */}
-                {tasks.map((t) => {
+                {/* 该项目的会话（折叠时缩进隐藏） */}
+                {!groupCollapsed && tasks.map((t) => {
                   const on = state.activeId === t.id;
                   return (
                     <div
@@ -494,30 +562,59 @@ export function SessionList() {
                         clearDrag();
                       }}
                       className={
-                        "group flex items-center gap-2 mx-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
+                        "group flex items-center gap-2 ml-4 mr-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
                         (overSession === t.id ? "border-t-accent " : "border-t-transparent ") +
                         (on ? "bg-accent/[0.10] border-l-accent" : "border-l-transparent hover:bg-white/[0.03]")
                       }
                       title={t.dir}
                     >
-                      <span className={"dot " + statusDot(t.status)} />
-                      <span className={"flex-1 min-w-0 truncate text-[12.5px] " + (on ? "text-ink-0" : "text-ink-1")}>
-                        {t.worktree_branch
-                          ? `⎇ ${t.worktree_branch}`
-                          : t.tool ? t.name : t.name || dirBasename(t.dir)}
-                      </span>
+                      <span
+                        className={"dot " + statusDot(t.status, chatted.has(t.id))}
+                        title={statusTitle(t.status, chatted.has(t.id))}
+                      />
+                      {renaming?.id === t.id ? (
+                        // 重命名输入框：拦掉 click/pointerdown，否则会触发选中会话和拖拽
+                        <input
+                          autoFocus
+                          value={renaming.text}
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onChange={(e) => setRenaming({ id: t.id, text: e.target.value })}
+                          onBlur={() => {
+                            void renameTask(t.id, renaming.text);
+                            setRenaming(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              void renameTask(t.id, renaming.text);
+                              setRenaming(null);
+                            } else if (e.key === "Escape") {
+                              setRenaming(null); // 原名不动
+                            }
+                          }}
+                          className="flex-1 min-w-0 h-5 px-1 rounded bg-black/20 border border-accent/50 text-[12.5px] text-ink-0 outline-none"
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setRenaming({ id: t.id, text: t.name || dirBasename(t.dir) });
+                          }}
+                          title="Double-click to rename"
+                          className={"flex-1 min-w-0 truncate text-[12.5px] " + (on ? "text-ink-0" : "text-ink-1")}
+                        >
+                          {t.worktree_branch
+                            ? `⎇ ${t.worktree_branch}`
+                            : t.tool ? t.name : t.name || dirBasename(t.dir)}
+                        </span>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDelClick(t.id);
+                          void onDelClick(t.id);
                         }}
-                        className={
-                          "inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all " +
-                          (confirmDel === t.id
-                            ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真删
-                            : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
-                        }
-                        title={confirmDel === t.id ? "Click again to confirm close (the folder on disk is untouched)" : "Close session"}
+                        className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                        title="Close session (asks first if it has history; the folder on disk is untouched)"
                       >
                         <X size={12} />
                       </button>
