@@ -24,7 +24,6 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
   const { state, addTask } = useWorkbench();
   const consumedDir = useRef<string | null>(null);
   const autoCreated = useRef(false);
-
   // 命令行 --open-dir 透传的目录 → 自动建会话并激活（reuse：同文件夹已有则激活）
   useEffect(() => {
     if (!state.loaded || !openedDir || consumedDir.current === openedDir) return;
@@ -48,7 +47,7 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
 
   return (
     <div className="flex h-full min-h-0 rounded-card border border-white/[0.08] overflow-hidden bg-bg-2">
-      <SessionList />
+      <SessionList onToast={onToast} />
       <div className="flex-1 min-w-0 min-h-0 relative">
         {state.tasks.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">

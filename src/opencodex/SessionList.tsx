@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -44,10 +44,35 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "aider", name: "Aider", cmd: "aider" },
 ];
 
-export function SessionList() {
-  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, renameTask, activate } =
+export function SessionList({ onToast }: { onToast?: (s: string) => void } = {}) {
+  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, reloadTasks, renameTask, activate } =
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
+
+  // 从 U-King 工作台导入会话（~/.uking/tasks.json → ~/.opencodex/tasks.json，按目录去重合并）。
+  // 场景：用户同时在用 U-King 和 OpenCodex，U-King 左侧攒下的项目/会话想在新工作台接着用。
+  const [importing, setImporting] = useState(false);
+  const importFromUking = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>(
+        "import_uking_tasks",
+      );
+      if (!r.source_exists) {
+        onToast?.("No U-King workspace data found (~/.uking/tasks.json)");
+      } else if (r.imported > 0) {
+        onToast?.(`Imported ${r.imported} project session(s) from U-King (${r.skipped} already present)`);
+        reloadTasks(); // 后端已合并，重拉列表
+      } else {
+        onToast?.(`Nothing to import — all ${r.skipped} U-King project(s) already here`);
+      }
+    } catch (e) {
+      onToast?.(`Import failed: ${String(e)}`);
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // 正在重命名的会话 id + 输入框内容（对齐 U-King 测试报告 #016）。双击名字进入，
   // 回车/失焦保存，Esc 取消。
@@ -633,9 +658,20 @@ export function SessionList() {
           <Puzzle size={12} />
           Plugins (coming soon)
         </div>
-        <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title="OpenCodex version">
-          v{__APP_VERSION__}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => void importFromUking()}
+            disabled={importing}
+            title="Import projects & sessions from U-King workspace (~/.uking/tasks.json)"
+            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-ink-5 hover:text-ink-2 hover:bg-white/[0.05] disabled:opacity-40"
+          >
+            <Download size={11} />
+            {importing ? "Importing…" : "Import U-King"}
+          </button>
+          <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title="OpenCodex version">
+            v{__APP_VERSION__}
+          </span>
+        </div>
       </div>
 
       {/* 右边缘拖拽条：拖动调宽，双击收起。骑在右边框上（往右探出一半便于抓取） */}

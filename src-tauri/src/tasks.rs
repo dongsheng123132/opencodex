@@ -171,3 +171,82 @@ pub fn reorder_tasks(ids: Vec<String>) -> Result<(), String> {
     }
     write_file(&f)
 }
+
+/// 规范化目录（去尾斜杠 + 小写），与前端 types.ts::normDir 同口径（分组/去重键）。
+fn norm_dir_key(dir: &str) -> String {
+    dir.trim_end_matches(['/', '\\']).to_lowercase()
+}
+
+/// 导入结果统计。
+#[derive(serde::Serialize)]
+pub struct ImportSummary {
+    /// 新导入的任务数
+    pub imported: usize,
+    /// 因目录已存在而跳过的任务数
+    pub skipped: usize,
+    /// U-King 数据文件是否存在（不存在 = 本机没装/没用过 U-King 工作台）
+    pub source_exists: bool,
+}
+
+/// 从 U-King 工作台导入会话（`~/.uking/tasks.json`）合并进 OpenCodex 的 tasks.json。
+///
+/// 为什么需要：用户同时在用 U-King 和 OpenCodex，U-King 左侧攒下的项目/会话
+/// 想在新工作台里接着用。两边 Task 结构兼容（serde 忽略未知字段 `expert`，
+/// worktree 字段 None 兜底），按「规范化目录」去重：OpenCodex 已有的目录跳过，
+/// 没有的新增（保留 U-King 的 id / order / 时间戳）。绝不删除或覆盖已有任务。
+#[tauri::command]
+pub fn import_uking_tasks() -> Result<ImportSummary, String> {
+    // U-King 数据位置：<USERPROFILE>/.uking/tasks.json（与 U-King tasks.rs 的 uking_home 同口径）
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| "找不到用户主目录".to_string())?;
+    let src = PathBuf::from(home).join(".uking").join("tasks.json");
+    if !src.exists() {
+        return Ok(ImportSummary {
+            imported: 0,
+            skipped: 0,
+            source_exists: false,
+        });
+    }
+    let raw = std::fs::read_to_string(&src).map_err(|e| format!("读取 U-King tasks.json 失败: {e}"))?;
+    let uk: TasksFile = serde_json::from_str(&raw).map_err(|e| format!("解析 U-King tasks.json 失败: {e}"))?;
+
+    let mut f = read_file();
+    let mut seen: std::collections::HashSet<String> =
+        f.tasks.iter().map(|t| norm_dir_key(&t.dir)).collect();
+    let mut imported = 0usize;
+    let mut skipped = 0usize;
+    for mut t in uk.tasks {
+        // 空 dir / 空 id 的脏数据直接丢（U-King 侧可能残留）
+        if t.dir.trim().is_empty() || t.id.trim().is_empty() {
+            continue;
+        }
+        let key = norm_dir_key(&t.dir);
+        if seen.contains(&key) {
+            skipped += 1;
+            continue;
+        }
+        // 补默认值（U-King 任务可能缺字段），并保证 created_at 有值
+        if t.status.is_empty() {
+            t.status = default_status();
+        }
+        if t.kind.is_empty() {
+            t.kind = default_kind();
+        }
+        if t.created_at == 0 {
+            t.created_at = now_ms();
+        }
+        f.tasks.push(t);
+        seen.insert(key);
+        imported += 1;
+    }
+    if imported > 0 {
+        f.version = 1;
+        write_file(&f)?;
+    }
+    Ok(ImportSummary {
+        imported,
+        skipped,
+        source_exists: true,
+    })
+}

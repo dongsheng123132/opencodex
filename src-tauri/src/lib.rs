@@ -189,6 +189,7 @@ pub fn run() {
             tasks::upsert_task,
             tasks::remove_task,
             tasks::reorder_tasks,
+            tasks::import_uking_tasks,
             quick::get_quick_cmds,
             quick::set_quick_cmds,
             kv::kv_get,

@@ -132,6 +132,8 @@ type Ctx = {
   addWorktree: (repoDir: string, branch: string, createBranch: boolean) => Promise<void>;
   /** 按给定 id 顺序重排左侧列表，并把任务型会话的顺序落盘。 */
   reorderTasks: (ids: string[]) => void;
+  /** 重新从后端拉取任务列表（导入/外部变更后刷新左侧）。 */
+  reloadTasks: () => void;
   /** 重命名会话显示名（纯展示，空名/原名忽略）。 */
   renameTask: (id: string, name: string) => Promise<void>;
   activate: (id: string) => void;
@@ -156,6 +158,12 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
   // 启动：拉取持久化任务（旧 tasks.json 补 project/kind 默认，向后兼容）
   useEffect(() => {
+    reloadTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 从后端拉任务列表（启动 + 导入后刷新共用同一份逻辑）
+  const reloadTasks = useCallback(() => {
     invoke<Task[]>("list_tasks")
       .then((tasks) =>
         dispatch({
@@ -323,6 +331,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
         removeTask,
         removeProject,
         reorderTasks,
+        reloadTasks,
         renameTask,
         addWorktree,
         activate,
