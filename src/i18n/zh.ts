@@ -113,7 +113,11 @@ export const ZH: Record<string, string> = {
   "Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash":
     "重置终端（Ctrl+Shift+R）：清掉 claude/codex 这类 TUI 崩溃后残留的鼠标垃圾、屏幕残影和光标丢失",
   "Delete this shortcut": "删除此快捷按钮",
+  "Edit this shortcut": "编辑此快捷按钮",
   "Add a custom shortcut": "添加自定义快捷按钮",
+  "Shortcut": "快捷项",
+  "Edit shortcut": "编辑快捷按钮",
+  "Restore default shortcuts": "恢复默认快捷按钮",
   "Add a shortcut (clicking it sends the command to the terminal)": "添加快捷按钮（点击后把命令发给终端）",
   "Button label (e.g. /model)": "按钮名（如 /model）",
   "Command to send (blank = same as label)": "要发送的命令（留空 = 同按钮名）",

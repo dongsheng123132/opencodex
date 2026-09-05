@@ -6,7 +6,7 @@
  * 只有「关闭任务」父级才卸载本组件，useTermGroup 的卸载 effect 关掉本任务所有 PTY。
  */
 import { useEffect, useRef, useState } from "react";
-import { Plus, X, RotateCcw } from "lucide-react";
+import { GripVertical, Pencil, Plus, RotateCcw, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useI18n } from "../../i18n";
@@ -28,31 +28,17 @@ export type TermPanelApi = {
   pasteText: (text: string) => void;
 };
 
-/** 终端顶部一键启动的常用命令（命令过后端白名单）。点一下发进终端执行。
- *  只放国际通用的 AI 编程 CLI —— 用户可在右侧「+ Custom」自行添加任意命令。 */
-const QUICK_TOOLS: { label: string; cmd: string }[] = [
-  { label: "claude", cmd: "claude" }, // Claude Code
-  { label: "codex", cmd: "codex" }, // OpenAI Codex CLI
-  { label: "gemini", cmd: "gemini" }, // Google Gemini CLI
-  { label: "opencode", cmd: "opencode" }, // opencode
-  { label: "aider", cmd: "aider" }, // aider
-  { label: "/model", cmd: "/model" }, // 切模型，最常用
-];
-
 export function TermPanel({
   cwd,
   active,
   tool,
   initialCmd,
-  prompts,
   onReady,
 }: {
   cwd: string;
   active: boolean;
   tool?: string;
   initialCmd?: string;
-  /** 顶栏快捷命令按钮（不传用默认 QUICK_TOOLS）。点了 runInActive 在当前终端跑。 */
-  prompts?: { label: string; cmd: string }[];
   /** 挂载后回调，透出 runCmd 给父级（一键启动 WebUI 等场景）。 */
   onReady?: (api: TermPanelApi) => void;
 }) {
@@ -105,32 +91,53 @@ export function TermPanel({
       un?.();
     };
   }, [active, hostRef, pasteToActive]);
-  // 内置快捷词（不可删）；prompts 传了就用 prompts（工具型会话场景）
-  const builtins = prompts ?? QUICK_TOOLS;
-
-  // 用户自定义快捷词（可增删，落盘 ~/.opencodex/quick_cmds.json）
-  const [custom, setCustom] = useState<QuickCmd[]>([]);
+  // 默认项和用户添加项共用一份可增删、改名、排序的清单；后端负责首次默认值。
+  const [quickCmds, setQuickCmds] = useState<QuickCmd[]>([]);
   const [adding, setAdding] = useState(false);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [draggingLabel, setDraggingLabel] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
   const [draftCmd, setDraftCmd] = useState("");
   useEffect(() => {
-    invoke<QuickCmd[]>("get_quick_cmds").then(setCustom).catch(() => {});
+    invoke<QuickCmd[]>("get_quick_cmds").then(setQuickCmds).catch(() => {});
   }, []);
   const persist = (next: QuickCmd[]) => {
-    setCustom(next);
+    setQuickCmds(next);
     invoke("set_quick_cmds", { cmds: next }).catch(() => {});
   };
-  const addCustom = () => {
+  const saveDraft = () => {
     const label = draftLabel.trim();
     // 命令留空则等于用标签当命令（如直接加 "/model"）
     const cmd = (draftCmd.trim() || label).trim();
     if (!label) return;
-    persist([...custom.filter((c) => c.label !== label), { label, cmd }]);
+    const kept = quickCmds.filter((c) => c.label !== editingLabel && c.label !== label);
+    persist([...kept, { label, cmd }]);
     setDraftLabel("");
     setDraftCmd("");
+    setEditingLabel(null);
     setAdding(false);
   };
-  const removeCustom = (label: string) => persist(custom.filter((c) => c.label !== label));
+  const removeQuickCmd = (label: string) => persist(quickCmds.filter((c) => c.label !== label));
+  const editQuickCmd = (q: QuickCmd) => {
+    setDraftLabel(q.label);
+    setDraftCmd(q.cmd);
+    setEditingLabel(q.label);
+    setAdding(true);
+  };
+  const resetQuickCmds = () => {
+    invoke<QuickCmd[]>("reset_quick_cmds").then(setQuickCmds).catch(() => {});
+  };
+  const moveQuickCmd = (targetLabel: string) => {
+    if (!draggingLabel || draggingLabel === targetLabel) return;
+    const from = quickCmds.findIndex((q) => q.label === draggingLabel);
+    const to = quickCmds.findIndex((q) => q.label === targetLabel);
+    if (from < 0 || to < 0) return;
+    const next = [...quickCmds];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    persist(next);
+    setDraggingLabel(null);
+  };
 
   // 关闭防误触：第一次点 × 进入「待确认」（按钮变红 ✓），2 秒内再点一次才真关闭，
   // 否则自动撤销。避免手滑把跑着 claude code 的终端一下点没了。
@@ -232,7 +239,7 @@ export function TermPanel({
             </button>
           </div>
         </div>
-        {/* 快捷词：内置（claude/codex…，不可删）+ 用户自定义（可删）+ 添加。
+        {/* 快捷词：默认项和自定义项都是同一种可编辑对象。
             占满剩余空间；按钮过多时内层横向滚动，+ 永远固定在最右不被挤掉。 */}
         <div className="relative flex items-center flex-1 min-w-0 pl-2 ml-1 border-l border-white/[0.06]">
           {/* onMouseDown preventDefault：点按钮不抢走终端焦点，纯 UX（点完焦点留在终端可继续打字、
@@ -240,29 +247,34 @@ export function TermPanel({
               的根治不在这里，而在 useTermGroup 的 term.onData 出口统一吞掉裸焦点序列——那才覆盖
               所有焦点来源（alt-tab、点文件树/对话、切窗口…），不止快捷按钮这一个口子。 */}
           <div className="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
-            {builtins.map((q) => (
-              <button
+            {quickCmds.map((q) => (
+              <span
                 key={q.label}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => runInActive(q.cmd)}
-                title={t("Run in terminal: {cmd}", { cmd: q.cmd })}
-                className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors shrink-0"
+                draggable
+                onDragStart={() => setDraggingLabel(q.label)}
+                onDragEnd={() => setDraggingLabel(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => moveQuickCmd(q.label)}
+                className="group/cmd relative inline-flex items-center shrink-0"
               >
-                {q.label}
-              </button>
-            ))}
-            {custom.map((q) => (
-              <span key={q.label} className="group/cmd relative inline-flex items-center shrink-0">
+                <GripVertical size={10} className="text-ink-5 opacity-0 group-hover/cmd:opacity-100 cursor-grab" />
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
                   title={t("Run in terminal: {cmd}", { cmd: q.cmd })}
-                  className="h-6 pl-2 pr-2 rounded text-[11px] text-accent-400 hover:text-ink-0 hover:bg-accent/[0.18] transition-colors"
+                  className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors"
                 >
                   {q.label}
                 </button>
                 <button
-                  onClick={() => removeCustom(q.label)}
+                  onClick={() => editQuickCmd(q)}
+                  title={t("Edit this shortcut")}
+                  className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-4 w-3.5 h-3.5 rounded-full bg-bg-4 text-ink-1 flex items-center justify-center transition-opacity"
+                >
+                  <Pencil size={8} />
+                </button>
+                <button
+                  onClick={() => removeQuickCmd(q.label)}
                   title={t("Delete this shortcut")}
                   className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-danger-500 text-white flex items-center justify-center transition-opacity"
                 >
@@ -278,25 +290,27 @@ export function TermPanel({
             className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-white/[0.04] border border-white/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
           >
             <Plus size={11} />
-            Custom
+            {t("Shortcut")}
           </button>
 
           {/* 添加弹层 */}
           {adding && (
             <div className="absolute right-0 top-8 z-40 w-60 rounded-card border border-white/[0.12] bg-bg-2 shadow-card p-2.5 space-y-2">
-              <div className="text-[11px] text-ink-3">{t("Add a shortcut (clicking it sends the command to the terminal)")}</div>
+              <div className="text-[11px] text-ink-3">
+                {t(editingLabel ? "Edit shortcut" : "Add a shortcut (clicking it sends the command to the terminal)")}
+              </div>
               <input
                 autoFocus
                 value={draftLabel}
                 onChange={(e) => setDraftLabel(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addCustom()}
+                onKeyDown={(e) => e.key === "Enter" && saveDraft()}
                 placeholder={t("Button label (e.g. /model)")}
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <input
                 value={draftCmd}
                 onChange={(e) => setDraftCmd(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addCustom()}
+                onKeyDown={(e) => e.key === "Enter" && saveDraft()}
                 placeholder={t("Command to send (blank = same as label)")}
                 className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
@@ -306,18 +320,25 @@ export function TermPanel({
                     setAdding(false);
                     setDraftLabel("");
                     setDraftCmd("");
+                    setEditingLabel(null);
                   }}
                   className="h-7 px-2.5 rounded text-[12px] text-ink-3 hover:bg-white/[0.05]"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={addCustom}
+                  onClick={saveDraft}
                   className="h-7 px-3 rounded text-[12px] bg-accent/[0.18] text-accent-400 hover:bg-accent/[0.28]"
                 >
-                  Add
+                  {t(editingLabel ? "Save" : "Add")}
                 </button>
               </div>
+              <button
+                onClick={resetQuickCmds}
+                className="w-full h-7 rounded text-[11px] text-ink-4 hover:text-ink-1 hover:bg-white/[0.05]"
+              >
+                {t("Restore default shortcuts")}
+              </button>
             </div>
           )}
         </div>

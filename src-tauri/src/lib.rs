@@ -192,6 +192,7 @@ pub fn run() {
             tasks::import_uking_tasks,
             quick::get_quick_cmds,
             quick::set_quick_cmds,
+            quick::reset_quick_cmds,
             kv::kv_get,
             kv::kv_set,
             kv::kv_keys_with_prefix,
