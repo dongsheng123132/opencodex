@@ -16,6 +16,8 @@ type AppEnv = {
   platform: string;
   home_dir: string;
   opened_dir: string | null;
+  data_dir: string;
+  portable: boolean;
 };
 
 export function App() {
@@ -49,6 +51,8 @@ export function App() {
         <SettingsDialog
           onToast={flash}
           onClose={() => setShowSettings(false)}
+          dataDir={env?.data_dir ?? null}
+          portable={env?.portable ?? false}
         />
       )}
 

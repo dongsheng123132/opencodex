@@ -40,6 +40,10 @@ struct AppEnv {
     home_dir: String,
     /// 命令行 `--open-dir` 透传进来的目录（CLI 集成预留），无则空
     opened_dir: Option<String>,
+    /// 实际使用的数据目录（多开隔离/便携模式下前端展示用）
+    data_dir: String,
+    /// 数据目录是否便携模式（exe 旁 portable-data / --data-dir / OPENCODEX_HOME）
+    portable: bool,
 }
 
 #[tauri::command]
@@ -48,6 +52,8 @@ fn get_env() -> AppEnv {
         platform: std::env::consts::OS.to_string(),
         home_dir: paths::home_dir(),
         opened_dir: parse_open_dir_arg(),
+        data_dir: paths::app_home().display().to_string(),
+        portable: paths::is_portable(),
     }
 }
 
@@ -126,6 +132,54 @@ fn parse_open_dir_arg() -> Option<String> {
         }
     }
     None
+}
+
+/// 在桌面创建当前 exe 的快捷方式（只写 .lnk，不写注册表，不破坏绿色叙事）。
+/// 小白常把裸 exe 丢在下载目录三天就找不着 —— 设置「关于」里一键创建。
+/// 已存在同名快捷方式则直接返回 Ok（幂等）。
+#[tauri::command]
+fn create_desktop_shortcut() -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        let exe = std::env::current_exe().map_err(|e| format!("取当前路径失败: {e}"))?;
+        let desktop = std::env::var("USERPROFILE")
+            .map(|h| std::path::PathBuf::from(h).join("Desktop"))
+            .map_err(|_| "取桌面路径失败".to_string())?;
+        let link = desktop.join("OpenCodex.lnk");
+        if link.exists() {
+            return Ok(link.display().to_string());
+        }
+        // 用 powershell 写 .lnk：零新依赖，WScript.Shell 是系统自带 COM。
+        let exe_s = exe.display().to_string();
+        let link_s = link.display().to_string();
+        let workdir = exe.parent().map(|p| p.display().to_string()).unwrap_or_default();
+        let ps = format!(
+            "$ws = New-Object -ComObject WScript.Shell; \
+             $sc = $ws.CreateShortcut({link:?}); \
+             $sc.TargetPath = {exe:?}; \
+             $sc.WorkingDirectory = {workdir:?}; \
+             $sc.Description = 'OpenCodex 本地编程工作台'; \
+             $sc.Save()"
+        );
+        let _ = link_s;
+        let _ = exe_s;
+        // powershell 起子进程：安静执行，不弹窗（window_subsystem 保证 GUI 下无黑窗）。
+        #[cfg(windows)]
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", &ps]);
+        #[cfg(windows)]
+        cmd.creation_flags(0x08000000);
+        let status = cmd.status().map_err(|e| format!("创建快捷方式失败: {e}"))?;
+        if !status.success() {
+            return Err("创建快捷方式失败（powershell 返回非零）".into());
+        }
+        Ok(link.display().to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        Err("当前平台暂不支持一键创建桌面快捷方式".into())
+    }
 }
 
 // ============================================================
@@ -217,6 +271,7 @@ pub fn run() {
             git::git_list_branches,
             git::git_create_worktree,
             git::git_remove_worktree,
+            create_desktop_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("启动 OpenCodex 失败");

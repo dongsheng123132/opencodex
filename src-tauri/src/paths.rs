@@ -8,13 +8,86 @@
 
 use std::path::{Path, PathBuf};
 
-/// OpenCodex 数据根目录：`$HOME/.opencodex`。
-/// 任务列表、可选便携运行时、配置都落在这里。
+/// OpenCodex 数据根目录。
+///
+/// 优先级（只取第一命中的，决定后整进程不变）：
+/// 1. `OPENCODEX_HOME` 环境变量（显式指定，最高）。
+/// 2. `--data-dir <path>` 命令行参数（U盘/多开隔离用）。
+/// 3. exe 同目录 `portable-data/`（存在才用 —— U盘即插即走）。
+/// 4. 回落 `$HOME/.opencodex`（默认行为）。
+///
+/// 多个绿色版共存：各 exe 放不同文件夹 → 各自 `portable-data/` → 数据天然隔离，
+/// tasks.json / config.json 互不覆盖。同一目录复制多份 exe 则共享一份数据。
 pub fn app_home() -> PathBuf {
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_else(|_| ".".into());
-    Path::new(&home).join(".opencodex")
+    use std::sync::OnceLock;
+    static HOME: OnceLock<PathBuf> = OnceLock::new();
+    HOME.get_or_init(|| {
+        // 1. 环境变量
+        if let Ok(v) = std::env::var("OPENCODEX_HOME") {
+            let v = v.trim();
+            if !v.is_empty() {
+                return PathBuf::from(v);
+            }
+        }
+        // 2. --data-dir <path>
+        let args: Vec<String> = std::env::args().collect();
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            if a == "--data-dir" {
+                if let Some(p) = it.next() {
+                    if !p.trim().is_empty() {
+                        return PathBuf::from(p.trim());
+                    }
+                }
+            }
+        }
+        // 3. exe 同目录 portable-data/（存在才用）
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                let portable = dir.join("portable-data");
+                if portable.is_dir() {
+                    return portable;
+                }
+            }
+        }
+        // 4. 默认 ~/.opencodex
+        let home = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .unwrap_or_else(|_| ".".into());
+        Path::new(&home).join(".opencodex")
+    })
+    .clone()
+}
+
+/// 数据目录是否便携模式（非默认 ~/.opencodex 即便携：--data-dir / OPENCODEX_HOME / exe 旁 portable-data）。
+/// 前端用它在「关于」里标注，避免用户分不清两个绿色版用的是哪份数据。
+pub fn is_portable() -> bool {
+    // 环境变量 / 命令行显式指定 → 便携
+    if let Ok(v) = std::env::var("OPENCODEX_HOME") {
+        if !v.trim().is_empty() {
+            return true;
+        }
+    }
+    let args: Vec<String> = std::env::args().collect();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "--data-dir" {
+            if let Some(p) = it.next() {
+                if !p.trim().is_empty() {
+                    return true;
+                }
+            }
+        }
+    }
+    // exe 旁 portable-data/ 存在 → 便携
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            if dir.join("portable-data").is_dir() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// 用户主目录（终端默认 cwd、config 写入用）。

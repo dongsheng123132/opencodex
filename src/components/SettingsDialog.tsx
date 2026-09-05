@@ -101,9 +101,13 @@ function contrastRatio(a: string, b: string): number {
 export function SettingsDialog({
   onToast,
   onClose,
+  dataDir,
+  portable,
 }: {
   onToast: (s: string) => void;
   onClose: () => void;
+  dataDir: string | null;
+  portable: boolean;
 }) {
   const { t } = useI18n();
   const { preference, setPreference } = useTheme();
@@ -390,7 +394,25 @@ export function SettingsDialog({
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-4">
               <Info size={12} /> {t("About")}
             </div>
-            <div className="text-[12px] text-ink-2">OpenCodex v{__APP_VERSION__}</div>
+            <div className="text-[12px] text-ink-2">
+              OpenCodex v{__APP_VERSION__}
+              {portable ? ` · ${t("Portable data")}` : ""}
+            </div>
+            {dataDir && (
+              <div className="text-[11px] text-ink-4 font-mono break-all" title={dataDir}>
+                {t("Data folder")}: {dataDir}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                invoke<string>("create_desktop_shortcut")
+                  .then((p) => onToast(`${t("Desktop shortcut created")}: ${p}`))
+                  .catch((e) => onToast(`${t("Failed to create shortcut")}: ${e}`));
+              }}
+              className="mt-1 px-3 h-8 rounded-lg border border-overlay/[0.10] text-ink-2 text-[12px] hover:bg-overlay/[0.04]"
+            >
+              {t("Create desktop shortcut")}
+            </button>
           </section>
         </div>
 
