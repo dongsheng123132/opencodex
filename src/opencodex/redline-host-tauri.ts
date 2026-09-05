@@ -32,8 +32,31 @@ export function createTauriRedlineHost(pasteToTerminal: (text: string) => void):
     async sendToAgent(text: string): Promise<void> {
       pasteToTerminal(text);
     },
+    async copyText(text: string): Promise<void> {
+      await copyToClipboard(text);
+    },
     async openExternal(path: string): Promise<void> {
       await invoke("open_path", { path });
     },
   };
+}
+
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // 某些 WebView 没授 Clipboard 权限，继续走受控的 textarea 兜底。
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("系统剪贴板不可用");
 }
