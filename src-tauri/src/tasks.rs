@@ -53,6 +53,9 @@ pub struct Task {
     /// 由 `reorder_tasks` 整体赋值（1-based）。新建会话保持 0 → 自动冒到顶部。
     #[serde(default)]
     pub order: i64,
+    /// 项目标识：同一文件夹下的多个 AI 会话共享此值；旧数据缺失时由前端按 dir 兜底。
+    #[serde(default)]
+    pub project: Option<String>,
     /// worktree：此任务关联的主仓库路径（None = 普通任务，Some = worktree 分支任务）。
     #[serde(default)]
     pub worktree_repo: Option<String>,
@@ -107,14 +110,42 @@ fn write_file(f: &TasksFile) -> Result<(), String> {
 
 /// 列出全部任务。手动排序优先：`order > 0` 按升序（用户拖出来的顺序）；
 /// `order == 0`（未排 / 新建）视为置顶，组内再按最近打开倒序——保持「新会话冒顶」的老手感。
-#[tauri::command]
-pub fn list_tasks() -> Vec<Task> {
-    let mut f = read_file();
-    f.tasks.sort_by(|a, b| {
+fn sort_visible(tasks: &mut [Task]) {
+    tasks.sort_by(|a, b| {
         let ka = if a.order == 0 { i64::MIN } else { a.order };
         let kb = if b.order == 0 { i64::MIN } else { b.order };
         ka.cmp(&kb).then(b.last_opened_at.cmp(&a.last_opened_at))
     });
+}
+
+fn order_projects_first(tasks: &mut [Task], project_keys: &[String]) {
+    let mut current_visible = tasks.to_vec();
+    sort_visible(&mut current_visible);
+    let mut ordered_ids = Vec::with_capacity(current_visible.len());
+    let mut ordered_seen = std::collections::HashSet::new();
+    for key in project_keys {
+        for task in current_visible.iter().filter(|task| norm_dir_key(&task.dir) == *key) {
+            if ordered_seen.insert(task.id.clone()) {
+                ordered_ids.push(task.id.clone());
+            }
+        }
+    }
+    for task in &current_visible {
+        if ordered_seen.insert(task.id.clone()) {
+            ordered_ids.push(task.id.clone());
+        }
+    }
+    for (index, id) in ordered_ids.iter().enumerate() {
+        if let Some(task) = tasks.iter_mut().find(|task| &task.id == id) {
+            task.order = (index as i64) + 1;
+        }
+    }
+}
+
+#[tauri::command]
+pub fn list_tasks() -> Vec<Task> {
+    let mut f = read_file();
+    sort_visible(&mut f.tasks);
     f.tasks
 }
 
@@ -209,11 +240,26 @@ pub fn import_uking_tasks() -> Result<ImportSummary, String> {
         });
     }
     let raw = std::fs::read_to_string(&src).map_err(|e| format!("读取 U-King tasks.json 失败: {e}"))?;
-    let uk: TasksFile = serde_json::from_str(&raw).map_err(|e| format!("解析 U-King tasks.json 失败: {e}"))?;
+    let mut uk: TasksFile = serde_json::from_str(&raw).map_err(|e| format!("解析 U-King tasks.json 失败: {e}"))?;
+    // 源文件的 Vec 物理顺序不等于 U-King 左栏顺序；使用与 U-King list_tasks 相同的排序规则。
+    sort_visible(&mut uk.tasks);
+
+    let mut source_project_keys = Vec::new();
+    let mut source_seen = std::collections::HashSet::new();
+    for task in &uk.tasks {
+        if !task.dir.trim().is_empty() {
+            let key = norm_dir_key(&task.dir);
+            if source_seen.insert(key.clone()) {
+                source_project_keys.push(key);
+            }
+        }
+    }
 
     let mut f = read_file();
     let mut seen: std::collections::HashSet<String> =
         f.tasks.iter().map(|t| norm_dir_key(&t.dir)).collect();
+    let mut ids: std::collections::HashSet<String> =
+        f.tasks.iter().map(|t| t.id.clone()).collect();
     let mut imported = 0usize;
     let mut skipped = 0usize;
     for mut t in uk.tasks {
@@ -236,17 +282,59 @@ pub fn import_uking_tasks() -> Result<ImportSummary, String> {
         if t.created_at == 0 {
             t.created_at = now_ms();
         }
+        // U-King 与 OpenCodex 各自生成过 id，同名并不代表同一个会话。
+        // 目录不同但 id 撞车时给导入项换一个稳定可读的本地 id，避免后续增删/排序误伤。
+        if ids.contains(&t.id) {
+            let base = t.id.clone();
+            let mut suffix = 1usize;
+            loop {
+                let candidate = format!("{base}-uking-{suffix}");
+                if !ids.contains(&candidate) {
+                    t.id = candidate;
+                    break;
+                }
+                suffix += 1;
+            }
+        }
+        ids.insert(t.id.clone());
         f.tasks.push(t);
         seen.insert(key);
         imported += 1;
     }
-    if imported > 0 {
-        f.version = 1;
-        write_file(&f)?;
-    }
+    // U-King 里能对上的项目（包括早已导入的）整体放到前面，项目间顺序与
+    // U-King 当前左栏一致；OpenCodex 独有项目保持自己原有可见顺序接在后面。
+    order_projects_first(&mut f.tasks, &source_project_keys);
+    f.version = 1;
+    write_file(&f)?;
     Ok(ImportSummary {
         imported,
         skipped,
         source_exists: true,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn task(id: &str, dir: &str, order: i64, last_opened_at: i64) -> Task {
+        Task {
+            id: id.into(), name: id.into(), dir: dir.into(), status: "idle".into(), source: "manual".into(),
+            assignee: None, external_ref: None, last_opened_at, created_at: last_opened_at,
+            tool: None, startup_cmd: None, kind: "task".into(), order, project: None,
+            worktree_repo: None, worktree_branch: None,
+        }
+    }
+
+    #[test]
+    fn uking_projects_move_to_front_in_source_order() {
+        let mut tasks = vec![
+            task("local", "C:/local", 1, 10),
+            task("uk-old", "C:/uk-old", 2, 20),
+            task("uk-new", "C:/uk-new", 3, 30),
+        ];
+        order_projects_first(&mut tasks, &["c:/uk-new".into(), "c:/uk-old".into()]);
+        sort_visible(&mut tasks);
+        assert_eq!(tasks.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(), vec!["uk-new", "uk-old", "local"]);
+    }
 }

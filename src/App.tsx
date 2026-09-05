@@ -22,7 +22,6 @@ export function App() {
   const [env, setEnv] = useState<AppEnv | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [tasksRevision, setTasksRevision] = useState(0);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -43,7 +42,6 @@ export function App() {
           homeDir={env?.home_dir ?? null}
           onToast={flash}
           onGoManage={() => setShowSettings(true)}
-          tasksRevision={tasksRevision}
         />
       </main>
 
@@ -51,7 +49,6 @@ export function App() {
         <SettingsDialog
           onToast={flash}
           onClose={() => setShowSettings(false)}
-          onTasksImported={() => setTasksRevision((revision) => revision + 1)}
         />
       )}
 

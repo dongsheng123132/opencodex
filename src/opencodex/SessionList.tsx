@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, X } from "lucide-react";
+import { Activity, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, Wrench, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -45,11 +45,32 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "aider", name: "Aider", cmd: "aider" },
 ];
 
-export function SessionList() {
+export function SessionList({ onToast, onGoManage }: { onToast: (message: string) => void; onGoManage: () => void }) {
   const { t: tr } = useI18n();
-  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, renameTask, activate } =
+  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, reloadTasks, renameTask, activate } =
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const importFromUking = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const result = await invoke<{ imported: number; skipped: number; source_exists: boolean }>("import_uking_tasks");
+      if (!result.source_exists) {
+        onToast(tr("No U-King workspace data found (~/.uking/tasks.json)"));
+      } else {
+        reloadTasks();
+        onToast(result.imported > 0
+          ? tr("Imported {n} project session(s) from U-King ({s} already present)", { n: result.imported, s: result.skipped })
+          : tr("U-King order synchronized; {n} project(s) already present", { n: result.skipped }));
+      }
+    } catch (error) {
+      onToast(tr("Import failed: {e}", { e: String(error) }));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // 正在重命名的会话 id + 输入框内容（对齐 U-King 测试报告 #016）。双击名字进入，
   // 回车/失焦保存，Esc 取消。
@@ -185,13 +206,13 @@ export function SessionList() {
     }
   };
 
-  // 把 from 组整体挪到 to 组之前，重建扁平 id 顺序后落盘。
-  const moveGroup = (fromKey: string, toKey: string) => {
+  // 把 from 组整体挪到 to 组的前/后半边，重建扁平 id 顺序后落盘。
+  const moveGroup = (fromKey: string, toKey: string, after = false) => {
     if (fromKey === toKey) return;
     const keys = groups.map(([k]) => k).filter((k) => k !== fromKey);
     const at = keys.indexOf(toKey);
     if (at < 0) return;
-    keys.splice(at, 0, fromKey);
+    keys.splice(at + (after ? 1 : 0), 0, fromKey);
     const byKey = new Map(groups);
     const ids: string[] = [];
     for (const k of keys) for (const t of byKey.get(k) ?? []) ids.push(t.id);
@@ -362,6 +383,8 @@ export function SessionList() {
               !!anyWorktreeTask || (repoRoot ? !!gitRepos[normDir(repoRoot)] : false);
             // 该项目组是否折叠（缩进隐藏其会话）
             const groupCollapsed = !!collapsedGroups[projKey];
+            const runningInGroup = tasks.filter((task) => task.status === "running").length;
+            const errorsInGroup = tasks.filter((task) => task.status === "error").length;
 
             return (
               <div
@@ -378,7 +401,8 @@ export function SessionList() {
                   const d = dragRef.current;
                   if (d?.kind === "group" && d.key !== projKey) {
                     e.preventDefault();
-                    moveGroup(d.key, projKey);
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    moveGroup(d.key, projKey, e.clientY >= rect.top + rect.height / 2);
                     clearDrag();
                   }
                 }}
@@ -393,8 +417,8 @@ export function SessionList() {
                   }}
                   onDragEnd={clearDrag}
                   className={
-                    "group flex items-center gap-1 px-2.5 py-1 text-[11px] text-ink-3 select-none cursor-grab active:cursor-grabbing border-t " +
-                    (overGroup === projKey ? "border-accent" : "border-transparent")
+                    "group flex items-center gap-1 px-2.5 pt-3 pb-1 mt-0.5 text-[12.5px] font-semibold text-ink-1 select-none cursor-grab active:cursor-grabbing border-t " +
+                    (overGroup === projKey ? "border-accent" : "border-overlay/[0.06]")
                   }
                 >
                   {/* 折叠箭头：点一下把该项目的会话缩进隐藏，再点展开 */}
@@ -415,6 +439,15 @@ export function SessionList() {
                   <span className="flex-1 min-w-0 truncate font-medium" title={projDisplayDir}>
                     {projName}
                   </span>
+                  {runningInGroup > 0 ? (
+                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-success-400 tabular-nums" title={tr("{n} session(s) running in this project", { n: runningInGroup })}>
+                      <span className="dot dot-on" /> {runningInGroup > 1 && runningInGroup}
+                    </span>
+                  ) : errorsInGroup > 0 ? (
+                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-danger-400 tabular-nums" title={tr("{n} session(s) failed in this project", { n: errorsInGroup })}>
+                      <span className="dot dot-error" /> {errorsInGroup > 1 && errorsInGroup}
+                    </span>
+                  ) : null}
                   {groupCollapsed && (
                     <span className="shrink-0 text-[10px] text-ink-5 tabular-nums px-1" title={`${tasks.length} session(s) hidden`}>
                       {tasks.length}
@@ -629,10 +662,32 @@ export function SessionList() {
         )}
       </div>
 
-      {/* 底部只放实时状态；迁移、版本和低频配置统一进右上角设置。 */}
-      <div className="px-3 py-2 border-t border-overlay/[0.06] shrink-0 flex items-center gap-2 text-[11px] text-ink-5">
-        <Activity size={12} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
-        {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
+      {/* 底部坑位：高频工作台入口 + 版本。「CLI 工具」后续承接探测/安装/配置；导入保留在左栏方便随时同步。 */}
+      <div className="border-t border-overlay/[0.08] shrink-0">
+        <div className="flex min-w-0 items-center gap-0.5 px-2 py-1.5">
+          <button
+            onClick={onGoManage}
+            className="inline-flex min-w-0 flex-1 items-center gap-1 h-7 px-1.5 rounded text-[10.5px] text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.05]"
+            title={tr("Detect, install and configure CLI tools")}
+          >
+            <Wrench size={11} className="shrink-0" /> <span className="truncate">{tr("CLI tools")}</span>
+          </button>
+          <button
+            onClick={() => void importFromUking()}
+            disabled={importing}
+            className="inline-flex min-w-0 flex-1 items-center gap-1 h-7 px-1.5 rounded text-[10.5px] text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.05] disabled:opacity-40"
+            title={tr("Import new projects and synchronize their order with U-King")}
+          >
+            <Download size={11} className="shrink-0" /> <span className="truncate">{importing ? tr("Importing…") : tr("Import U-King")}</span>
+          </button>
+          <span className="ml-auto shrink-0 text-[9.5px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-overlay/[0.04]" title={tr("OpenCodex version")}>
+            v{__APP_VERSION__}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 pb-2 text-[10px] text-ink-5">
+          <Activity size={10} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
+          {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
+        </div>
       </div>
 
       {/* 右边缘拖拽条：拖动调宽，双击收起。骑在右边框上（往右探出一半便于抓取） */}

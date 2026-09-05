@@ -371,7 +371,7 @@ export function TermPanel({
         </div>
       </div>
       {/* 终端宿主 */}
-      <div ref={hostRef} className="relative flex-1 min-h-0 bg-bg-0">
+      <div ref={hostRef} className="relative flex-1 min-h-0 overflow-hidden bg-bg-0">
         {dragOver && (
           <div className="pointer-events-none absolute inset-1 z-20 rounded-md border-2 border-dashed border-accent/70 bg-accent/[0.08] flex items-center justify-center">
             <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">{t("Drop to insert the path into the command line")}</span>

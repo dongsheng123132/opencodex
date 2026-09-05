@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { ChevronDown, Download, Info, KeyRound, Monitor, Moon, Palette, RotateCcw, Save, Sun, X } from "lucide-react";
+import { ChevronDown, Info, KeyRound, Monitor, Moon, Palette, RotateCcw, Save, Sun, X } from "lucide-react";
 import { useI18n } from "../i18n";
 import { useTheme, type ThemePreference } from "../theme";
 import {
@@ -33,6 +33,9 @@ type ConfigStatus = {
   config: ModelConfig;
   claude_installed: boolean;
   codex_installed: boolean;
+  hermes_installed: boolean;
+  gemini_installed: boolean;
+  opencode_installed: boolean;
   ready: boolean;
 };
 
@@ -98,18 +101,15 @@ function contrastRatio(a: string, b: string): number {
 export function SettingsDialog({
   onToast,
   onClose,
-  onTasksImported,
 }: {
   onToast: (s: string) => void;
   onClose: () => void;
-  onTasksImported: () => void;
 }) {
   const { t } = useI18n();
   const { preference, setPreference } = useTheme();
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [form, setForm] = useState<ModelConfig>({ base_url: "", api_key: "", model: "", small_model: "" });
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [terminalColorsOpen, setTerminalColorsOpen] = useState(false);
   const [showAnsiColors, setShowAnsiColors] = useState(false);
   const [terminalThemeLoaded, setTerminalThemeLoaded] = useState(false);
@@ -185,26 +185,6 @@ export function SettingsDialog({
     }
   };
 
-  const importFromUking = async () => {
-    if (importing) return;
-    setImporting(true);
-    try {
-      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>("import_uking_tasks");
-      if (!r.source_exists) {
-        onToast(t("No U-King workspace data found (~/.uking/tasks.json)"));
-      } else if (r.imported > 0) {
-        onToast(t("Imported {n} project session(s) from U-King ({s} already present)", { n: r.imported, s: r.skipped }));
-        onTasksImported();
-      } else {
-        onToast(t("Nothing to import — all {n} U-King project(s) already here", { n: r.skipped }));
-      }
-    } catch (e) {
-      onToast(t("Import failed: {e}", { e: String(e) }));
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={cancel}>
       <div
@@ -275,7 +255,7 @@ export function SettingsDialog({
                           : "border-overlay/[0.10] text-ink-3 hover:bg-overlay/[0.04] hover:text-ink-1")
                       }
                     >
-                      {t(preset.preset === "default" ? "Default" : preset.preset === "deep-gray" ? "Deep gray" : preset.preset === "high-contrast" ? "High contrast" : "Light terminal")}
+                      {t(preset.preset === "default" ? "OpenCodex" : preset.preset === "vscode-dark" ? "VS Code Dark+" : preset.preset === "windows-campbell" ? "Windows Terminal" : "GitHub Light")}
                     </button>
                   ))}
                 </div>
@@ -327,6 +307,27 @@ export function SettingsDialog({
                 </div>
               </div>
             )}
+          </section>
+
+          <section className="pt-4 border-t border-overlay/[0.06] space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("CLI tools")}</div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {status && ([
+                ["Claude", status.claude_installed],
+                ["Codex", status.codex_installed],
+                ["Hermes", status.hermes_installed],
+                ["Gemini", status.gemini_installed],
+                ["OpenCode", status.opencode_installed],
+              ] as const).map(([name, installed]) => (
+                <div key={name} className="rounded-md border border-overlay/[0.08] px-2 py-2 text-center">
+                  <div className="text-[11px] text-ink-2 truncate">{name}</div>
+                  <div className={"mt-1 text-[9.5px] " + (installed ? "text-success-400" : "text-ink-5")}>
+                    {installed ? t("Detected") : t("Not installed")}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-[10.5px] text-ink-5">{t("CLI detection is ready here; guided installation and per-tool configuration will use this entry.")}</div>
           </section>
 
           <div className="pt-4 border-t border-overlay/[0.06] text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("AI model")}</div>
@@ -384,19 +385,6 @@ export function SettingsDialog({
           <div className="text-[11px] text-ink-4 leading-relaxed">
             {t("Saved only to ~/.opencodex/config.json, and applied only to terminals and AI subprocesses launched by OpenCodex.")}
           </div>
-
-          <section className="pt-4 border-t border-overlay/[0.06] space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("Data & migration")}</div>
-            <button
-              onClick={() => void importFromUking()}
-              disabled={importing}
-              className="inline-flex items-center gap-2 h-8 px-3 rounded-md border border-overlay/[0.10] text-ink-2 text-[12px] hover:bg-overlay/[0.04] hover:text-ink-0 disabled:opacity-40"
-            >
-              <Download size={13} />
-              {importing ? t("Importing…") : t("Import U-King")}
-            </button>
-            <div className="text-[11px] text-ink-4">{t("Import projects & sessions from U-King workspace (~/.uking/tasks.json)")}</div>
-          </section>
 
           <section className="pt-4 border-t border-overlay/[0.06] space-y-1">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-4">

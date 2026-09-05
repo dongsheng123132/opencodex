@@ -242,7 +242,9 @@ export function useTermGroup(opts: {
     if (!host) return;
     const key = ++seqRef.current;
     const el = document.createElement("div");
-    el.style.cssText = "position:absolute;inset:0;padding:6px 8px;";
+    // 底部多留 6px：WebGL 画布按像素取整时，最后一行在某些 DPI/窗口高度下会贴边被裁。
+    // FitAddon 会把 padding 从可用高度扣掉，不是用遮罩盖住 TUI。
+    el.style.cssText = "position:absolute;inset:0;padding:6px 8px 12px;";
     host.appendChild(el);
 
     const term = new XTerm({

@@ -40,6 +40,10 @@ pub struct ConfigStatus {
     pub claude_installed: bool,
     /// codex CLI 是否能找到
     pub codex_installed: bool,
+    /// 其它常用 AI CLI 的可用性（设置页工具管理入口用）
+    pub hermes_installed: bool,
+    pub gemini_installed: bool,
+    pub opencode_installed: bool,
     /// 是否已配好 OpenCodex 自己的模型环境（不读取 Claude Code 全局配置）
     pub ready: bool,
 }
@@ -106,6 +110,9 @@ pub fn get_config() -> ConfigStatus {
     let cfg = read_config();
     let claude_installed = tool_installed("claude");
     let codex_installed = tool_installed("codex");
+    let hermes_installed = tool_installed("hermes");
+    let gemini_installed = tool_installed("gemini");
+    let opencode_installed = tool_installed("opencode");
     let configured = !cfg.base_url.trim().is_empty() && !cfg.api_key.trim().is_empty();
     let masked = ModelConfig {
         base_url: cfg.base_url.clone(),
@@ -117,6 +124,9 @@ pub fn get_config() -> ConfigStatus {
         config: masked,
         claude_installed,
         codex_installed,
+        hermes_installed,
+        gemini_installed,
+        opencode_installed,
         // 只代表 OpenCodex 自己保存的模型环境是否完整；不读取/推断 Claude Code 全局配置。
         ready: configured,
     }

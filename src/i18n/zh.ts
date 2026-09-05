@@ -30,6 +30,12 @@ export const ZH: Record<string, string> = {
     "只改本应用内的 xterm 显示，不会改 Claude、Codex、Hermes 或系统终端配置。",
   "Data & migration": "数据与迁移",
   "About": "关于",
+  "CLI tools": "CLI 工具",
+  "Detect, install and configure CLI tools": "检测、安装和配置 CLI 工具",
+  "Detected": "已检测",
+  "Not installed": "未安装",
+  "CLI detection is ready here; guided installation and per-tool configuration will use this entry.":
+    "这里已接入 CLI 检测；后续的引导安装和单工具配置也统一从这个入口进。",
   "{n} terminal(s) running": "{n} 个终端正在运行",
   "OpenCodex": "OpenCodex",
   "Run in terminal: {cmd}": "在终端中运行: {cmd}",
@@ -40,6 +46,7 @@ export const ZH: Record<string, string> = {
   "Expand session bar": "展开会话栏",
   "New chat": "新对话",
   "Import projects & sessions from U-King workspace (~/.uking/tasks.json)": "从 U-King 工作台导入项目与会话（~/.uking/tasks.json）",
+  "Import new projects and synchronize their order with U-King": "导入新项目，并同步为 U-King 当前顺序",
   "New project (pick a folder)": "新建项目（选择文件夹）",
   "Select a project folder": "选择项目文件夹",
   "Open projects": "打开的项目",
@@ -76,9 +83,12 @@ export const ZH: Record<string, string> = {
   "No U-King workspace data found (~/.uking/tasks.json)": "没有找到 U-King 工作台数据（~/.uking/tasks.json）",
   "Imported {n} project session(s) from U-King ({s} already present)":
     "已从 U-King 导入 {n} 个项目会话（{s} 个已存在）",
+  "U-King order synchronized; {n} project(s) already present": "已同步 U-King 顺序，{n} 个项目已存在",
   "Nothing to import — all {n} U-King project(s) already here": "没有可导入的 —— {n} 个 U-King 项目已全部存在",
   "Import failed: {e}": "导入失败: {e}",
   "OpenCodex version": "OpenCodex 版本",
+  "{n} session(s) running in this project": "该项目有 {n} 个会话正在运行",
+  "{n} session(s) failed in this project": "该项目有 {n} 个会话上次运行失败",
 
   // —— 主区 / 布局（OpenCodex / SplitArea）——
   "Open a folder and get to work": "打开一个文件夹，开始干活",

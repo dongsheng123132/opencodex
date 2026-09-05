@@ -58,34 +58,36 @@ export const DEFAULT_TERMINAL_PALETTE: TerminalPalette = {
 export const TERMINAL_THEME_PRESETS: TerminalThemeSetting[] = [
   { preset: "default", colors: DEFAULT_TERMINAL_PALETTE },
   {
-    preset: "deep-gray",
+    preset: "vscode-dark",
     colors: {
       ...DEFAULT_TERMINAL_PALETTE,
-      background: "#111318", foreground: "#d9dde7", cursor: "#7aa2f7", cursorAccent: "#111318",
-      selectionBackground: "#2d3445", black: "#20242d", brightBlack: "#697386",
-      blue: "#7aa2f7", cyan: "#7dcfff", green: "#9ece6a", magenta: "#bb9af7", red: "#f7768e", yellow: "#e0af68",
+      background: "#1e1e1e", foreground: "#cccccc", cursor: "#ffffff", cursorAccent: "#1e1e1e",
+      selectionBackground: "#264f78", black: "#000000", red: "#cd3131", green: "#0dbc79",
+      yellow: "#e5e510", blue: "#2472c8", magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5",
+      brightBlack: "#666666", brightRed: "#f14c4c", brightGreen: "#23d18b", brightYellow: "#f5f543",
+      brightBlue: "#3b8eea", brightMagenta: "#d670d6", brightCyan: "#29b8db", brightWhite: "#ffffff",
     },
   },
   {
-    preset: "high-contrast",
+    preset: "windows-campbell",
     colors: {
       ...DEFAULT_TERMINAL_PALETTE,
-      background: "#000000", foreground: "#ffffff", cursor: "#ffff00", cursorAccent: "#000000",
-      selectionBackground: "#374151", black: "#000000", red: "#ff5f56", green: "#5af78e",
-      yellow: "#f3f99d", blue: "#57c7ff", magenta: "#ff6ac1", cyan: "#9aedfe", white: "#f1f1f0",
-      brightBlack: "#686868", brightRed: "#ff5f56", brightGreen: "#5af78e", brightYellow: "#f3f99d",
-      brightBlue: "#57c7ff", brightMagenta: "#ff6ac1", brightCyan: "#9aedfe", brightWhite: "#ffffff",
+      background: "#0c0c0c", foreground: "#cccccc", cursor: "#ffffff", cursorAccent: "#0c0c0c",
+      selectionBackground: "#4d4d4d", black: "#0c0c0c", red: "#c50f1f", green: "#13a10e",
+      yellow: "#c19c00", blue: "#0037da", magenta: "#881798", cyan: "#3a96dd", white: "#cccccc",
+      brightBlack: "#767676", brightRed: "#e74856", brightGreen: "#16c60c", brightYellow: "#f9f1a5",
+      brightBlue: "#3b78ff", brightMagenta: "#b4009e", brightCyan: "#61d6d6", brightWhite: "#f2f2f2",
     },
   },
   {
-    preset: "light",
+    preset: "github-light",
     colors: {
       ...DEFAULT_TERMINAL_PALETTE,
-      background: "#f8f8f8", foreground: "#242424", cursor: "#3b5bdb", cursorAccent: "#f8f8f8",
-      selectionBackground: "#cbd5e1", black: "#242424", red: "#c01c28", green: "#197b2d",
-      yellow: "#7a6500", blue: "#2456a6", magenta: "#8b3f96", cyan: "#087d82", white: "#d4d4d4",
-      brightBlack: "#666666", brightRed: "#e01b24", brightGreen: "#26a269", brightYellow: "#a27300",
-      brightBlue: "#3584e4", brightMagenta: "#c061cb", brightCyan: "#0aa0a8", brightWhite: "#ffffff",
+      background: "#ffffff", foreground: "#24292f", cursor: "#0969da", cursorAccent: "#ffffff",
+      selectionBackground: "#b6d7ff", black: "#24292f", red: "#cf222e", green: "#1a7f37",
+      yellow: "#9a6700", blue: "#0969da", magenta: "#8250df", cyan: "#1b7c83", white: "#d0d7de",
+      brightBlack: "#57606a", brightRed: "#ff8182", brightGreen: "#4ac26b", brightYellow: "#d4a72c",
+      brightBlue: "#54aeff", brightMagenta: "#a475f9", brightCyan: "#39c5cf", brightWhite: "#f6f8fa",
     },
   },
 ];
@@ -107,8 +109,9 @@ export function parseTerminalTheme(value: string | null): TerminalThemeSetting {
     const safeColors = Object.fromEntries(
       Object.entries(incoming).filter(([, color]) => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color)),
     ) as Partial<TerminalPalette>;
+    const knownPresets = new Set(["default", "vscode-dark", "windows-campbell", "github-light", "custom"]);
     return {
-      preset: typeof parsed.preset === "string" ? parsed.preset : "custom",
+      preset: typeof parsed.preset === "string" && knownPresets.has(parsed.preset) ? parsed.preset : "custom",
       colors: { ...DEFAULT_TERMINAL_PALETTE, ...safeColors },
     };
   } catch {
