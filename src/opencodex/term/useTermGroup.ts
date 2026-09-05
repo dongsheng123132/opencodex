@@ -15,7 +15,9 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 
-const DARK_TERM_THEME = {
+// 终端调色板保持固定，不跟随应用外壳主题切换。
+// xterm 的 ANSI 颜色会被 Claude/Codex/Hermes TUI 直接使用，自动改它等于改 CLI 自己的界面。
+export const TERM_THEME = {
   background: "#0d0d0f",
   foreground: "#f7f8f8",
   cursor: "#5e6ad2",
@@ -26,22 +28,6 @@ const DARK_TERM_THEME = {
   white: "#e3e4e6",
   brightWhite: "#f7f8f8",
 };
-
-const LIGHT_TERM_THEME = {
-  background: "#ffffff",
-  foreground: "#272930",
-  cursor: "#4f5ac0",
-  cursorAccent: "#ffffff",
-  selectionBackground: "rgba(94,106,210,0.20)",
-  black: "#272930",
-  brightBlack: "#7c828f",
-  white: "#e5e7eb",
-  brightWhite: "#ffffff",
-};
-
-function currentTermTheme() {
-  return document.documentElement.dataset.theme === "light" ? LIGHT_TERM_THEME : DARK_TERM_THEME;
-}
 
 // 软重置序列 —— 把终端各种「上报/屏幕」私有模式打回默认。专治 claude/codex 等 TUI 崩溃/被杀后
 // 没机会清理留下的卡死状态:鼠标坐标乱码、备用屏花屏、括号粘贴异常、光标消失、方向键错乱。
@@ -240,7 +226,7 @@ export function useTermGroup(opts: {
       fontSize: fontSizeRef.current,
       lineHeight: 1.2,
       cursorBlink: true,
-      theme: currentTermTheme(),
+      theme: TERM_THEME,
       scrollback: 5000,
     });
     const fit = new FitAddon();
@@ -496,18 +482,6 @@ export function useTermGroup(opts: {
     ro.observe(host);
     return () => ro.disconnect();
   }, [fitActive]);
-
-  // 应用主题切换时同步所有已存在的 xterm；只换渲染选项，不重建终端、不碰 PTY。
-  useEffect(() => {
-    const apply = () => {
-      const theme = currentTermTheme();
-      for (const session of sessionsRef.current) session.term.options.theme = theme;
-      if (hostRef.current) hostRef.current.style.background = theme.background;
-    };
-    apply();
-    window.addEventListener("opencodex-theme-change", apply);
-    return () => window.removeEventListener("opencodex-theme-change", apply);
-  }, []);
 
   // 卸载：关掉本 group 所有 PTY（仅在调用组件真正卸载时触发——
   // 工作台靠常驻 + display 切换保活，只有「关闭任务」才卸载 TermPanel）

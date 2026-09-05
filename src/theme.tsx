@@ -24,7 +24,6 @@ function applyTheme(preference: ThemePreference): ResolvedTheme {
   document.documentElement.dataset.theme = resolved;
   document.documentElement.classList.toggle("dark", resolved === "dark");
   document.documentElement.style.colorScheme = resolved;
-  window.dispatchEvent(new CustomEvent("opencodex-theme-change", { detail: resolved }));
   return resolved;
 }
 
