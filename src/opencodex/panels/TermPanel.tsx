@@ -20,6 +20,7 @@ function pathsToCmdText(paths: string[]): string {
 }
 
 type QuickCmd = { label: string; cmd: string };
+const QUICK_CMDS_EVENT = "opencodex:quick-commands";
 
 /** TermPanel 暴露给父级的命令式接口（透出 runInActive 给一键启动场景，pasteText 给 Redline 标注转发场景）。 */
 export type TermPanelApi = {
@@ -43,12 +44,16 @@ export function TermPanel({
   onReady?: (api: TermPanelApi) => void;
 }) {
   const { t } = useI18n();
-  const { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize, resetActive } = useTermGroup({
+  const {
+    hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive,
+    fontSize, bumpFontSize, resetActive, activeCommand,
+  } = useTermGroup({
     open: active,
     cwd,
     tool,
     initialCmd,
   });
+  const showCodexHistory = tool === "codex" || /^\s*codex(?:\.exe)?(?:\s|$)/i.test(activeCommand ?? "");
 
   // 拖放落路径：拖文件/图片/文件夹到本终端区 → 把真实路径写进当前命令行（不自动回车）。
   // 走 Tauri 窗口级 onDragDropEvent（webview 拦了 HTML5 drag，但能给真实文件系统路径）。
@@ -100,9 +105,13 @@ export function TermPanel({
   const [draftCmd, setDraftCmd] = useState("");
   useEffect(() => {
     invoke<QuickCmd[]>("get_quick_cmds").then(setQuickCmds).catch(() => {});
+    const sync = (event: Event) => setQuickCmds((event as CustomEvent<QuickCmd[]>).detail);
+    window.addEventListener(QUICK_CMDS_EVENT, sync);
+    return () => window.removeEventListener(QUICK_CMDS_EVENT, sync);
   }, []);
   const persist = (next: QuickCmd[]) => {
     setQuickCmds(next);
+    window.dispatchEvent(new CustomEvent<QuickCmd[]>(QUICK_CMDS_EVENT, { detail: next }));
     invoke("set_quick_cmds", { cmds: next }).catch(() => {});
   };
   const saveDraft = () => {
@@ -110,8 +119,11 @@ export function TermPanel({
     // 命令留空则等于用标签当命令（如直接加 "/model"）
     const cmd = (draftCmd.trim() || label).trim();
     if (!label) return;
-    const kept = quickCmds.filter((c) => c.label !== editingLabel && c.label !== label);
-    persist([...kept, { label, cmd }]);
+    const oldIndex = editingLabel == null ? -1 : quickCmds.findIndex((c) => c.label === editingLabel);
+    const kept = quickCmds.filter((c, index) => index !== oldIndex && c.label !== label);
+    const insertAt = oldIndex < 0 ? kept.length : Math.min(oldIndex, kept.length);
+    kept.splice(insertAt, 0, { label, cmd });
+    persist(kept);
     setDraftLabel("");
     setDraftCmd("");
     setEditingLabel(null);
@@ -125,7 +137,14 @@ export function TermPanel({
     setAdding(true);
   };
   const resetQuickCmds = () => {
-    invoke<QuickCmd[]>("reset_quick_cmds").then(setQuickCmds).catch(() => {});
+    invoke<QuickCmd[]>("reset_quick_cmds").then((next) => {
+      setQuickCmds(next);
+      window.dispatchEvent(new CustomEvent<QuickCmd[]>(QUICK_CMDS_EVENT, { detail: next }));
+      setAdding(false);
+      setEditingLabel(null);
+      setDraftLabel("");
+      setDraftCmd("");
+    }).catch(() => {});
   };
   const moveQuickCmd = (targetLabel: string) => {
     if (!draggingLabel || draggingLabel === targetLabel) return;
@@ -238,6 +257,14 @@ export function TermPanel({
               <RotateCcw size={13} />
             </button>
           </div>
+          {showCodexHistory && (
+            <div
+              className="ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0 text-[10px] text-ink-4 whitespace-nowrap"
+              title={t("Codex uses an alternate screen. Press Ctrl+T to browse and copy the full transcript.")}
+            >
+              {t("History Ctrl+T")}
+            </div>
+          )}
         </div>
         {/* 快捷词：默认项和自定义项都是同一种可编辑对象。
             占满剩余空间；按钮过多时内层横向滚动，+ 永远固定在最右不被挤掉。 */}

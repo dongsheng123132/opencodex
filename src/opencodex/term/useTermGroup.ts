@@ -14,20 +14,14 @@ import { invoke, Channel } from "@tauri-apps/api/core";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
-
-// 终端调色板保持固定，不跟随应用外壳主题切换。
-// xterm 的 ANSI 颜色会被 Claude/Codex/Hermes TUI 直接使用，自动改它等于改 CLI 自己的界面。
-export const TERM_THEME = {
-  background: "#0d0d0f",
-  foreground: "#f7f8f8",
-  cursor: "#5e6ad2",
-  cursorAccent: "#0d0d0f",
-  selectionBackground: "rgba(255,255,255,0.10)",
-  black: "#1b1b1f",
-  brightBlack: "#6b7280",
-  white: "#e3e4e6",
-  brightWhite: "#f7f8f8",
-};
+import {
+  DEFAULT_TERMINAL_THEME_SETTING,
+  parseTerminalTheme,
+  terminalTheme,
+  TERMINAL_THEME_EVENT,
+  TERMINAL_THEME_KV_KEY,
+  type TerminalThemeSetting,
+} from "./terminalTheme";
 
 // 软重置序列 —— 把终端各种「上报/屏幕」私有模式打回默认。专治 claude/codex 等 TUI 崩溃/被杀后
 // 没机会清理留下的卡死状态:鼠标坐标乱码、备用屏花屏、括号粘贴异常、光标消失、方向键错乱。
@@ -51,6 +45,8 @@ type TermSession = {
   disposed: boolean; // 已关闭标记：异步 init（setTimeout/ensurePty）回来前若已关，跳过别写已 dispose 的 xterm
   lastCols: number; // 上次发给后端 PTY 的 cols/rows —— 尺寸没真变就不再发，杜绝无谓 SIGWINCH 重绘
   lastRows: number;
+  lastCommand: string | null;
+  pendingInput: string;
 };
 
 export type TermGroup = {
@@ -71,6 +67,8 @@ export type TermGroup = {
   bumpFontSize: (delta: number) => void;
   /** 软重置当前终端：清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失等），不清屏不碰 shell */
   resetActive: () => void;
+  /** 当前标签最后一次由工作台快捷启动的命令 */
+  activeCommand: string | null;
 };
 
 /**
@@ -104,16 +102,40 @@ export function useTermGroup(opts: {
   const [fontSize, setFontSizeState] = useState(14);
   const [tabs, setTabs] = useState<{ key: number; title: string }[]>([]);
   const [activeKey, setActiveKeyState] = useState<number | null>(null);
+  const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const activeKeyRef = useRef<number | null>(null);
   activeKeyRef.current = activeKey;
 
   // 用户主动点标签切终端：切过去 + 给焦点（被动重渲染走 setActiveKeyState 不会到这）
   const setActiveKey = useCallback((k: number) => {
     setActiveKeyState(k);
+    setActiveCommand(sessionsRef.current.find((x) => x.key === k)?.lastCommand ?? null);
     // 切到的终端立即拿焦点（用户意图明确）；下一帧等 display 切完再 focus
     requestAnimationFrame(() => {
       sessionsRef.current.find((x) => x.key === k)?.term.focus();
     });
+  }, []);
+
+  // 终端配色全局共享，但只响应「终端配色」设置；外壳主题切换不会到这里。
+  const terminalThemeRef = useRef<TerminalThemeSetting>(DEFAULT_TERMINAL_THEME_SETTING);
+  useEffect(() => {
+    let previewSeen = false;
+    const apply = (setting: TerminalThemeSetting) => {
+      terminalThemeRef.current = setting;
+      const theme = terminalTheme(setting);
+      for (const s of sessionsRef.current) s.term.options.theme = theme;
+    };
+    void invoke<string | null>("kv_get", { key: TERMINAL_THEME_KV_KEY })
+      .then((value) => {
+        if (!previewSeen) apply(parseTerminalTheme(value));
+      })
+      .catch(() => {});
+    const onTheme = (event: Event) => {
+      previewSeen = true;
+      apply((event as CustomEvent<TerminalThemeSetting>).detail);
+    };
+    window.addEventListener(TERMINAL_THEME_EVENT, onTheme);
+    return () => window.removeEventListener(TERMINAL_THEME_EVENT, onTheme);
   }, []);
 
   // 统一防抖 fit：activeKey 切换 / 容器尺寸变化 / open 切换都走这一个入口，
@@ -195,6 +217,8 @@ export function useTermGroup(opts: {
       if (initialCmdRef.current && !initialFiredRef.current) {
         initCmd = initialCmdRef.current;
         initialFiredRef.current = true;
+        s.lastCommand = initCmd;
+        if (s.key === activeKeyRef.current) setActiveCommand(initCmd);
       }
       const sid = await invoke<string>("term_open", {
         cols: s.term.cols || 80,
@@ -226,7 +250,7 @@ export function useTermGroup(opts: {
       fontSize: fontSizeRef.current,
       lineHeight: 1.2,
       cursorBlink: true,
-      theme: TERM_THEME,
+      theme: terminalTheme(terminalThemeRef.current),
       scrollback: 5000,
     });
     const fit = new FitAddon();
@@ -243,7 +267,10 @@ export function useTermGroup(opts: {
       /* 不支持 WebGL（极少数环境）→ 用默认渲染，不影响功能 */
     }
 
-    const s: TermSession = { key, title: `Terminal ${key}`, term, fit, sessionId: null, el, disposed: false, lastCols: 0, lastRows: 0 };
+    const s: TermSession = {
+      key, title: `Terminal ${key}`, term, fit, sessionId: null, el,
+      disposed: false, lastCols: 0, lastRows: 0, lastCommand: null, pendingInput: "",
+    };
     term.onData((d) => {
       // —— 焦点上报泄漏防护（DECSET 1004）——
       // claude/codex 等 TUI 启用「焦点上报」(\e[?1004h) 后若崩溃/被杀，没机会发关闭序列
@@ -253,6 +280,23 @@ export function useTermGroup(opts: {
       // 任何工具也无实际功能，就在 xterm→PTY 这唯一出口处吞掉，根治所有焦点来源
       // （比逐个按钮 preventDefault 彻底）。
       if (d === "\x1b[I" || d === "\x1b[O") return;
+      // 捕获用户在 shell 里手动输入的简单启动命令，让「Codex 历史 Ctrl+T」提示
+      // 不只依赖顶部快捷按钮。复杂行编辑不猜测，只处理可打印字符、退格和回车。
+      if (d === "\r") {
+        const command = s.pendingInput.trim();
+        if (/^codex(?:\.exe)?(?:\s|$)/i.test(command)) {
+          s.lastCommand = command;
+          if (s.key === activeKeyRef.current) setActiveCommand(command);
+        } else if (/^(?:claude|hermes|opencode)(?:\.exe)?(?:\s|$)/i.test(command)) {
+          s.lastCommand = command;
+          if (s.key === activeKeyRef.current) setActiveCommand(command);
+        }
+        s.pendingInput = "";
+      } else if (d === "\x7f" || d === "\b") {
+        s.pendingInput = s.pendingInput.slice(0, -1);
+      } else if (/^[\x20-\x7e]+$/.test(d) && s.pendingInput.length < 512) {
+        s.pendingInput += d;
+      }
       if (s.sessionId) invoke("term_write", { sessionId: s.sessionId, data: d }).catch(() => {});
     });
 
@@ -386,6 +430,7 @@ export function useTermGroup(opts: {
       if (cur !== key) return cur;
       const next = arr[idx] ?? arr[idx - 1] ?? null;
       const nk = next ? next.key : null;
+      setActiveCommand(next?.lastCommand ?? null);
       if (nk != null) requestAnimationFrame(() => next?.term.focus());
       return nk;
     });
@@ -441,6 +486,8 @@ export function useTermGroup(opts: {
         if (!s) return;
         const sid = await ensurePty(s);
         if (!sid) return;
+        s.lastCommand = cmd;
+        setActiveCommand(cmd);
         await invoke("term_write", { sessionId: sid, data: cmd + "\r" }).catch(() => {});
         s.term.focus();
       })();
@@ -497,5 +544,8 @@ export function useTermGroup(opts: {
     };
   }, []);
 
-  return { hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive, fontSize, bumpFontSize, resetActive };
+  return {
+    hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive,
+    fontSize, bumpFontSize, resetActive, activeCommand,
+  };
 }
