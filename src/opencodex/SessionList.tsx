@@ -275,11 +275,11 @@ export function SessionList() {
   // 折叠态：窄条 rail —— 只留展开 + 新建对话 + 新建项目三个图标，把空间全让给终端
   if (collapsed) {
     return (
-      <aside className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06] bg-bg-1 min-h-0">
+      <aside className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-overlay/[0.06] bg-bg-1 min-h-0">
         <button
           onClick={toggleCollapsed}
           title={tr("Expand session bar")}
-          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
         >
           <ChevronsRight size={16} />
         </button>
@@ -293,7 +293,7 @@ export function SessionList() {
         <button
           onClick={pickFolder}
           title={tr("New project (pick a folder)")}
-          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+          className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
         >
           <FolderPlus size={15} />
         </button>
@@ -304,7 +304,7 @@ export function SessionList() {
   return (
     <aside
       style={{ width }}
-      className="relative shrink-0 flex flex-col border-r border-white/[0.06] bg-bg-1 min-h-0"
+      className="relative shrink-0 flex flex-col border-r border-overlay/[0.06] bg-bg-1 min-h-0"
     >
       {/* 顶部品牌条 + 收起按钮 */}
       <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
@@ -312,7 +312,7 @@ export function SessionList() {
         <button
           onClick={toggleCollapsed}
           title={tr("Collapse session bar (give the space to the terminal)")}
-          className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
+          className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06]"
         >
           <ChevronsLeft size={14} />
         </button>
@@ -329,7 +329,7 @@ export function SessionList() {
         </button>
         <button
           onClick={pickFolder}
-          className="w-full inline-flex items-center gap-2 h-7 px-2.5 rounded-card text-ink-3 hover:bg-white/[0.04] text-[12px]"
+          className="w-full inline-flex items-center gap-2 h-7 px-2.5 rounded-card text-ink-3 hover:bg-overlay/[0.04] text-[12px]"
           title={tr("Pick a folder to start a project")}
         >
           <FolderPlus size={13} />
@@ -403,7 +403,7 @@ export function SessionList() {
                       e.stopPropagation();
                       toggleGroup(projKey);
                     }}
-                    className="inline-flex items-center justify-center w-4 h-4 -ml-1 shrink-0 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                    className="inline-flex items-center justify-center w-4 h-4 -ml-1 shrink-0 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.08]"
                     title={groupCollapsed ? "Expand this project" : "Collapse this project"}
                   >
                     {groupCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
@@ -428,7 +428,7 @@ export function SessionList() {
                         tasks.map((t) => t.id),
                       );
                     }}
-                    className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                    className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.08]"
                     title={tr("Delete the whole project (removes all its sessions; the folder on disk is untouched)")}
                   >
                     <Trash2 size={12} />
@@ -452,7 +452,7 @@ export function SessionList() {
                         "inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all " +
                         (worktreeInputFor === projKey
                           ? "opacity-100 text-accent-400 bg-accent/[0.12]"
-                          : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]")
+                          : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent-400 hover:bg-overlay/[0.06]")
                       }
                       title={tr("New worktree (work on another branch in parallel)")}
                     >
@@ -463,13 +463,13 @@ export function SessionList() {
                     <div className="relative">
                       <button
                         onClick={() => setAddMenuFor(addMenuFor === projKey ? null : projKey)}
-                        className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-accent-400 hover:bg-white/[0.06]"
+                        className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-accent-400 hover:bg-overlay/[0.06]"
                         title={tr("Open a new AI session in this project")}
                       >
                         <Plus size={12} />
                       </button>
                       {addMenuFor === projKey && (
-                        <div className="absolute right-0 top-6 z-30 w-36 rounded-card border border-white/[0.10] bg-bg-2 shadow-card p-1">
+                        <div className="absolute right-0 top-6 z-30 w-36 rounded-card border border-overlay/[0.10] bg-bg-2 shadow-card p-1">
                           {ADD_TOOLS.map((a) => (
                             <button
                               key={a.tool}
@@ -477,7 +477,7 @@ export function SessionList() {
                                 addSession(projDisplayDir, a.tool, a.name, a.cmd);
                                 setAddMenuFor(null);
                               }}
-                              className="w-full text-left px-2 py-1.5 rounded text-[12px] text-ink-2 hover:bg-white/[0.05]"
+                              className="w-full text-left px-2 py-1.5 rounded text-[12px] text-ink-2 hover:bg-overlay/[0.05]"
                             >
                               {a.name}
                             </button>
@@ -490,7 +490,7 @@ export function SessionList() {
 
                 {/* worktree 分支输入行（内联展开，不弹新窗口） */}
                 {!groupCollapsed && worktreeInputFor === projKey && (
-                  <div className="mx-1.5 mb-1 flex items-center gap-1 px-2 py-1 rounded-card bg-white/[0.04] border border-white/[0.08]">
+                  <div className="mx-1.5 mb-1 flex items-center gap-1 px-2 py-1 rounded-card bg-overlay/[0.04] border border-overlay/[0.08]">
                     <GitBranch size={11} className="shrink-0 text-accent-400" />
                     <input
                       autoFocus
@@ -566,7 +566,7 @@ export function SessionList() {
                       className={
                         "group flex items-center gap-2 ml-4 mr-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
                         (overSession === t.id ? "border-t-accent " : "border-t-transparent ") +
-                        (on ? "bg-accent/[0.10] border-l-accent" : "border-l-transparent hover:bg-white/[0.03]")
+                        (on ? "bg-accent/[0.10] border-l-accent" : "border-l-transparent hover:bg-overlay/[0.03]")
                       }
                       title={t.dir}
                     >
@@ -594,7 +594,7 @@ export function SessionList() {
                               setRenaming(null); // 原名不动
                             }
                           }}
-                          className="flex-1 min-w-0 h-5 px-1 rounded bg-black/20 border border-accent/50 text-[12.5px] text-ink-0 outline-none"
+                          className="flex-1 min-w-0 h-5 px-1 rounded bg-overlay/[0.08] border border-accent/50 text-[12.5px] text-ink-0 outline-none"
                         />
                       ) : (
                         <span
@@ -615,7 +615,7 @@ export function SessionList() {
                           e.stopPropagation();
                           void onDelClick(t.id);
                         }}
-                        className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
+                        className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.08]"
                         title={tr("Close session (asks first if it has history; the folder on disk is untouched)")}
                       >
                         <X size={12} />
@@ -630,7 +630,7 @@ export function SessionList() {
       </div>
 
       {/* 底部只放实时状态；迁移、版本和低频配置统一进右上角设置。 */}
-      <div className="px-3 py-2 border-t border-white/[0.06] shrink-0 flex items-center gap-2 text-[11px] text-ink-5">
+      <div className="px-3 py-2 border-t border-overlay/[0.06] shrink-0 flex items-center gap-2 text-[11px] text-ink-5">
         <Activity size={12} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
         {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
       </div>

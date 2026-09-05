@@ -166,7 +166,7 @@ export function TermPanel({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 标签栏 */}
-      <div className="flex items-center h-8 px-2 gap-1 border-b border-white/[0.06] bg-bg-1 shrink-0">
+      <div className="flex items-center h-8 px-2 gap-1 border-b border-overlay/[0.06] bg-bg-1 shrink-0">
         <div className="flex items-center gap-1 min-w-0 shrink overflow-x-auto">
           {tabs.map((tab) => {
             const pending = confirmKey === tab.key;
@@ -176,7 +176,7 @@ export function TermPanel({
                 onClick={() => setActiveKey(tab.key)}
                 className={
                   "group flex items-center gap-1.5 h-6 pl-2.5 pr-1 rounded cursor-pointer text-[12px] shrink-0 " +
-                  (tab.key === activeKey ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-white/[0.04]")
+                  (tab.key === activeKey ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-overlay/[0.04]")
                 }
               >
                 <span className="dot dot-on" />
@@ -190,7 +190,7 @@ export function TermPanel({
                     "inline-flex items-center justify-center w-4 h-4 rounded ml-0.5 transition-all " +
                     (pending
                       ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真关
-                      : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
+                      : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.08]")
                   }
                   title={pending ? t("Click again to confirm close") : t("Close this terminal")}
                 >
@@ -201,18 +201,18 @@ export function TermPanel({
           })}
           <button
             onClick={() => newTerm()}
-            className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-2 bg-white/[0.04] border border-white/[0.10] hover:text-ink-0 hover:bg-accent/[0.18] hover:border-accent/40 shrink-0 transition-colors"
+            className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-2 bg-overlay/[0.04] border border-overlay/[0.10] hover:text-ink-0 hover:bg-accent/[0.18] hover:border-accent/40 shrink-0 transition-colors"
             title={t("New terminal tab")}
           >
             <Plus size={14} />
           </button>
           {/* 字号调节：A- / 当前值 / A+（也可用 Ctrl +/- 调，Ctrl 0 复位） */}
-          <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
+          <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(-1)}
               title={t("Decrease font size (Ctrl -)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
             >
               −
             </button>
@@ -221,19 +221,19 @@ export function TermPanel({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => bumpFontSize(1)}
               title={t("Increase font size (Ctrl +)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
             >
               +
             </button>
           </div>
           {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
               只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
-          <div className="flex items-center ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
+          <div className="flex items-center ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={resetActive}
               title={t("Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash")}
-              className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+              className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
             >
               <RotateCcw size={13} />
             </button>
@@ -241,7 +241,7 @@ export function TermPanel({
         </div>
         {/* 快捷词：默认项和自定义项都是同一种可编辑对象。
             占满剩余空间；按钮过多时内层横向滚动，+ 永远固定在最右不被挤掉。 */}
-        <div className="relative flex items-center flex-1 min-w-0 pl-2 ml-1 border-l border-white/[0.06]">
+        <div className="relative flex items-center flex-1 min-w-0 pl-2 ml-1 border-l border-overlay/[0.06]">
           {/* onMouseDown preventDefault：点按钮不抢走终端焦点，纯 UX（点完焦点留在终端可继续打字、
               少一次焦点抖动）。焦点上报泄漏（DECSET 1004 卡死 → \e[O/\e[I 污染命令成 `[Occd`/`> I`）
               的根治不在这里，而在 useTermGroup 的 term.onData 出口统一吞掉裸焦点序列——那才覆盖
@@ -287,7 +287,7 @@ export function TermPanel({
           <button
             onClick={() => setAdding((v) => !v)}
             title={t("Add a custom shortcut")}
-            className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-white/[0.04] border border-white/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
+            className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-ink-3 bg-overlay/[0.04] border border-overlay/[0.08] hover:text-accent-400 hover:bg-accent/[0.12] hover:border-accent/30 shrink-0 ml-1 transition-colors"
           >
             <Plus size={11} />
             {t("Shortcut")}
@@ -295,7 +295,7 @@ export function TermPanel({
 
           {/* 添加弹层 */}
           {adding && (
-            <div className="absolute right-0 top-8 z-40 w-60 rounded-card border border-white/[0.12] bg-bg-2 shadow-card p-2.5 space-y-2">
+            <div className="absolute right-0 top-8 z-40 w-60 rounded-card border border-overlay/[0.12] bg-bg-2 shadow-card p-2.5 space-y-2">
               <div className="text-[11px] text-ink-3">
                 {t(editingLabel ? "Edit shortcut" : "Add a shortcut (clicking it sends the command to the terminal)")}
               </div>
@@ -305,14 +305,14 @@ export function TermPanel({
                 onChange={(e) => setDraftLabel(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && saveDraft()}
                 placeholder={t("Button label (e.g. /model)")}
-                className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
+                className="w-full h-7 px-2 rounded bg-bg-1 border border-overlay/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <input
                 value={draftCmd}
                 onChange={(e) => setDraftCmd(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && saveDraft()}
                 placeholder={t("Command to send (blank = same as label)")}
-                className="w-full h-7 px-2 rounded bg-bg-1 border border-white/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
+                className="w-full h-7 px-2 rounded bg-bg-1 border border-overlay/[0.10] text-[12px] text-ink-1 outline-none focus:border-accent/50"
               />
               <div className="flex items-center justify-end gap-1.5">
                 <button
@@ -322,7 +322,7 @@ export function TermPanel({
                     setDraftCmd("");
                     setEditingLabel(null);
                   }}
-                  className="h-7 px-2.5 rounded text-[12px] text-ink-3 hover:bg-white/[0.05]"
+                  className="h-7 px-2.5 rounded text-[12px] text-ink-3 hover:bg-overlay/[0.05]"
                 >
                   Cancel
                 </button>
@@ -335,7 +335,7 @@ export function TermPanel({
               </div>
               <button
                 onClick={resetQuickCmds}
-                className="w-full h-7 rounded text-[11px] text-ink-4 hover:text-ink-1 hover:bg-white/[0.05]"
+                className="w-full h-7 rounded text-[11px] text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.05]"
               >
                 {t("Restore default shortcuts")}
               </button>
@@ -344,7 +344,7 @@ export function TermPanel({
         </div>
       </div>
       {/* 终端宿主 */}
-      <div ref={hostRef} className="relative flex-1 min-h-0 bg-[#0d0d0f]">
+      <div ref={hostRef} className="relative flex-1 min-h-0 bg-bg-0">
         {dragOver && (
           <div className="pointer-events-none absolute inset-1 z-20 rounded-md border-2 border-dashed border-accent/70 bg-accent/[0.08] flex items-center justify-center">
             <span className="text-[12px] text-accent-400 bg-bg-2/90 px-2.5 py-1 rounded">{t("Drop to insert the path into the command line")}</span>

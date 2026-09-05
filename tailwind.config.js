@@ -18,11 +18,23 @@ export default {
       },
       colors: {
         // 窄值域中性面：canvas=bg-0 → 抬升=bg-4
-        bg: { 0: "#0d0d0f", 1: "#111114", 2: "#151518", 3: "#1b1b1f", 4: "#222227" },
-        ink: {
-          0: "#f7f8f8", 1: "#e3e4e6", 2: "#a1a1aa",
-          3: "#8a8f98", 4: "#6b7280", 5: "#4a4d55", 6: "#2c2e33",
+        bg: {
+          0: "rgb(var(--bg-0) / <alpha-value>)",
+          1: "rgb(var(--bg-1) / <alpha-value>)",
+          2: "rgb(var(--bg-2) / <alpha-value>)",
+          3: "rgb(var(--bg-3) / <alpha-value>)",
+          4: "rgb(var(--bg-4) / <alpha-value>)",
         },
+        ink: {
+          0: "rgb(var(--ink-0) / <alpha-value>)",
+          1: "rgb(var(--ink-1) / <alpha-value>)",
+          2: "rgb(var(--ink-2) / <alpha-value>)",
+          3: "rgb(var(--ink-3) / <alpha-value>)",
+          4: "rgb(var(--ink-4) / <alpha-value>)",
+          5: "rgb(var(--ink-5) / <alpha-value>)",
+          6: "rgb(var(--ink-6) / <alpha-value>)",
+        },
+        overlay: "rgb(var(--overlay) / <alpha-value>)",
         // 单一冷调色（Linear 靛蓝），仅用于选中 / 焦点 / 主按钮
         accent: {
           DEFAULT: "#5e6ad2", 400: "#7a85e0", 500: "#5e6ad2",

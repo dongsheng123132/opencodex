@@ -246,28 +246,28 @@ export function FilesPanel({
   return (
     <div className="flex h-full min-h-0">
       {/* 树 */}
-      <div className="w-[280px] shrink-0 flex flex-col border-r border-white/[0.06] min-h-0">
-        <div className="flex items-center gap-1 h-8 px-3 border-b border-white/[0.06] shrink-0">
+      <div className="w-[280px] shrink-0 flex flex-col border-r border-overlay/[0.06] min-h-0">
+        <div className="flex items-center gap-1 h-8 px-3 border-b border-overlay/[0.06] shrink-0">
           <span className="text-[11px] text-ink-3 truncate font-mono flex-1" title={root}>
             {root}
           </span>
           <button
             onClick={() => startCreate(root, false)}
-            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
+            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06] shrink-0"
             title={t("New file")}
           >
             <FilePlus size={12} />
           </button>
           <button
             onClick={() => startCreate(root, true)}
-            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
+            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06] shrink-0"
             title={t("New folder")}
           >
             <FolderPlus size={12} />
           </button>
           <button
             onClick={refresh}
-            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06] shrink-0"
+            className="inline-flex items-center justify-center w-5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06] shrink-0"
             title={t("Refresh")}
           >
             <RefreshCw size={12} />
@@ -280,7 +280,7 @@ export function FilesPanel({
           <Tree dir={root} depth={0} ctx={ctx} />
         </div>
         {err && (
-          <div className="shrink-0 px-3 py-1.5 text-[11px] text-danger-400 border-t border-white/[0.06] truncate" title={err}>
+          <div className="shrink-0 px-3 py-1.5 text-[11px] text-danger-400 border-t border-overlay/[0.06] truncate" title={err}>
             {err}
           </div>
         )}
@@ -290,13 +290,13 @@ export function FilesPanel({
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {activePath ? (
           <>
-            <div className="h-8 px-3 flex items-center gap-2 border-b border-white/[0.06] shrink-0 text-[11px] text-ink-3 font-mono">
+            <div className="h-8 px-3 flex items-center gap-2 border-b border-overlay/[0.06] shrink-0 text-[11px] text-ink-3 font-mono">
               <span className="truncate flex-1" title={activePath}>
                 {activePath}
               </span>
               <button
                 onClick={() => void invoke("open_path", { path: activePath })}
-                className="inline-flex items-center gap-1 shrink-0 px-1.5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
+                className="inline-flex items-center gap-1 shrink-0 px-1.5 h-5 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06]"
                 title={t("Open with default app")}
               >
                 <ExternalLink size={11} /> {t("Open")}
@@ -377,7 +377,7 @@ function Tree({ dir, depth, ctx }: { dir: string; depth: number; ctx: TreeCtx })
               onContextMenu={(ev) => ctx.onContext(ev, e)}
               className={
                 "flex items-center gap-1 h-6 pr-2 cursor-pointer rounded-sm " +
-                (on ? "bg-accent/[0.12] text-ink-0" : "text-ink-2 hover:bg-white/[0.04]")
+                (on ? "bg-accent/[0.12] text-ink-0" : "text-ink-2 hover:bg-overlay/[0.04]")
               }
               style={{ paddingLeft: 8 + depth * 12 }}
               title={e.name}
@@ -520,7 +520,7 @@ function ContextMenu({
       <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(ev) => { ev.preventDefault(); onClose(); }} />
       <div
         style={style}
-        className="fixed z-50 min-w-[176px] py-1 rounded-lg border border-white/[0.10] bg-bg-2 shadow-xl text-[12.5px] text-ink-1"
+        className="fixed z-50 min-w-[176px] py-1 rounded-lg border border-overlay/[0.10] bg-bg-2 shadow-xl text-[12.5px] text-ink-1"
       >
         {isFile && <Item label={t("Preview")} onClick={run(onOpen)} />}
         {isFile && <Item label={t("Open with default app")} onClick={run(onOpenExternal)} />}
@@ -547,7 +547,7 @@ function Item({ label, onClick, danger }: { label: string; onClick: () => void; 
     <button
       onClick={onClick}
       className={
-        "w-full text-left px-3 py-1.5 hover:bg-white/[0.06] " +
+        "w-full text-left px-3 py-1.5 hover:bg-overlay/[0.06] " +
         (danger ? "text-danger-400" : "text-ink-1")
       }
     >
@@ -557,5 +557,5 @@ function Item({ label, onClick, danger }: { label: string; onClick: () => void; 
 }
 
 function Sep() {
-  return <div className="my-1 border-t border-white/[0.06]" />;
+  return <div className="my-1 border-t border-overlay/[0.06]" />;
 }

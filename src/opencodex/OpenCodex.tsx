@@ -53,7 +53,7 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage, tasksRevision
   };
 
   return (
-    <div className="flex h-full min-h-0 rounded-card border border-white/[0.08] overflow-hidden bg-bg-2">
+    <div className="flex h-full min-h-0 rounded-card border border-overlay/[0.08] overflow-hidden bg-bg-2">
       <SessionList />
       <div className="flex-1 min-w-0 min-h-0 relative">
         {state.tasks.length === 0 ? (

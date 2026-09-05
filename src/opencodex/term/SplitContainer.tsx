@@ -164,14 +164,14 @@ export function SplitContainer({
               <button
                 onClick={() => splitPane(pr.id, "row")}
                 title="Split horizontally (open another terminal)"
-                className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
+                className="w-7 h-7 rounded-md bg-bg-2/95 border border-overlay/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
               >
                 <Columns2 size={13} />
               </button>
               <button
                 onClick={() => splitPane(pr.id, "col")}
                 title="Split vertically (open another terminal)"
-                className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
+                className="w-7 h-7 rounded-md bg-bg-2/95 border border-overlay/[0.12] flex items-center justify-center text-ink-2 hover:text-white hover:bg-accent/[0.30] hover:border-accent/50"
               >
                 <Rows2 size={13} />
               </button>
@@ -179,7 +179,7 @@ export function SplitContainer({
                 <button
                   onClick={() => closePane(pr.id)}
                   title="Close this pane"
-                  className="w-7 h-7 rounded-md bg-bg-2/95 border border-white/[0.12] flex items-center justify-center text-ink-2 hover:text-danger-400 hover:bg-white/[0.08]"
+                  className="w-7 h-7 rounded-md bg-bg-2/95 border border-overlay/[0.12] flex items-center justify-center text-ink-2 hover:text-danger-400 hover:bg-overlay/[0.08]"
                 >
                   <X size={13} />
                 </button>
@@ -287,7 +287,7 @@ function SplitBar({
     <div
       onMouseDown={onDown}
       className={
-        "absolute z-[5] bg-white/[0.06] hover:bg-accent/60 transition-colors " +
+        "absolute z-[5] bg-overlay/[0.06] hover:bg-accent/60 transition-colors " +
         (isRow ? "cursor-col-resize" : "cursor-row-resize")
       }
       style={{ left: `${bar.left}%`, top: `${bar.top}%`, width: `${bar.width}%`, height: `${bar.height}%` }}

@@ -53,20 +53,20 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-2 h-10 px-3 border-b border-white/[0.06] shrink-0">
+      <div className="flex items-center gap-2 h-10 px-3 border-b border-overlay/[0.06] shrink-0">
         <Globe size={14} className="text-ink-3 shrink-0" />
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && openInline(url)}
           placeholder="http://localhost:3000 or https://…"
-          className="flex-1 h-7 rounded-md border border-white/[0.10] bg-bg-1 px-2.5 text-[12.5px] text-ink-1 placeholder:text-ink-4 outline-none focus:border-accent/50"
+          className="flex-1 h-7 rounded-md border border-overlay/[0.10] bg-bg-1 px-2.5 text-[12.5px] text-ink-1 placeholder:text-ink-4 outline-none focus:border-accent/50"
         />
         {loaded && (
           <button
             onClick={() => setNonce((n) => n + 1)}
             title={t("Refresh")}
-            className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06] shrink-0"
           >
             <RefreshCw size={13} />
           </button>
@@ -80,7 +80,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
         <button
           onClick={() => void openWindow(url)}
           title={t("Open in a separate window (for pages that block embedding)")}
-          className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0 border-l border-white/[0.08] ml-0.5 pl-1"
+          className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06] shrink-0 border-l border-overlay/[0.08] ml-0.5 pl-1"
         >
           <ExternalLink size={13} />
         </button>
@@ -102,7 +102,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
               <button
                 key={q.url}
                 onClick={() => openInline(q.url)}
-                className="h-8 px-3 rounded-full border border-white/[0.10] text-[12px] text-ink-2 hover:bg-white/[0.04] font-mono"
+                className="h-8 px-3 rounded-full border border-overlay/[0.10] text-[12px] text-ink-2 hover:bg-overlay/[0.04] font-mono"
               >
                 {q.label}
               </button>
@@ -111,7 +111,7 @@ export function BrowserPanel({ taskId }: { taskId: string }) {
           <div className="text-ink-5 text-[11px]">{t("If the page is blank (embedding blocked), click ⬈ on the right of the address bar to open it in a separate window")}</div>
         </div>
       )}
-      {err && <div className="shrink-0 px-3 py-1.5 text-danger-400 text-[12px] border-t border-white/[0.06]">{err}</div>}
+      {err && <div className="shrink-0 px-3 py-1.5 text-danger-400 text-[12px] border-t border-overlay/[0.06]">{err}</div>}
     </div>
   );
 }

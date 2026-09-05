@@ -57,7 +57,7 @@ export function App() {
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="flex items-center gap-2 rounded-full border border-white/[0.10] bg-bg-3/95 backdrop-blur px-4 py-2 text-[13px] text-ink-1 shadow-card">
+          <div className="flex items-center gap-2 rounded-full border border-overlay/[0.10] bg-bg-3/95 backdrop-blur px-4 py-2 text-[13px] text-ink-1 shadow-card">
             <Sparkles size={14} className="text-accent" />
             {toast}
           </div>
@@ -74,7 +74,7 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
   return (
     <header
       data-tauri-drag-region
-      className="h-9 shrink-0 flex items-center justify-between px-3 border-b border-white/[0.06] bg-bg-0"
+      className="h-9 shrink-0 flex items-center justify-between px-3 border-b border-overlay/[0.06] bg-bg-0"
     >
       <div className="flex items-center gap-2 pointer-events-none select-none">
         <span className="grid place-items-center w-5 h-5 rounded bg-accent text-white">
@@ -86,7 +86,7 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
         <button
           onClick={() => setLang(lang === "zh" ? "en" : "zh")}
           title="Switch language / 切换语言"
-          className="pointer-events-auto inline-flex items-center gap-1 px-2 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
+          className="pointer-events-auto inline-flex items-center gap-1 px-2 h-6 rounded text-ink-3 text-[11px] hover:bg-overlay/[0.04] hover:text-ink-1 transition-colors"
         >
           <Languages size={12} />
           {lang === "zh" ? "EN" : "中文"}
@@ -94,7 +94,7 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
         <button
           onClick={onSettings}
           title={t("Settings")}
-          className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
+          className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-overlay/[0.04] hover:text-ink-1 transition-colors"
         >
           <Settings size={13} />
           {t("Settings")}

@@ -91,7 +91,7 @@ export function ChatColumn({
   return (
     <div className="flex flex-col h-full min-h-0 min-w-0">
       {/* 顶栏：任务名 + 目录 + 切模型 + 终端分屏 + 文件/浏览器开关 */}
-      <div className="flex items-center h-10 px-3 border-b border-white/[0.06] bg-bg-1 shrink-0 gap-2">
+      <div className="flex items-center h-10 px-3 border-b border-overlay/[0.06] bg-bg-1 shrink-0 gap-2">
         <span className="text-[13px] font-medium text-ink-0 truncate">{task.name}</span>
         {task.tool && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/[0.14] text-accent-400 shrink-0">
@@ -125,14 +125,14 @@ export function ChatColumn({
         <button
           onClick={onGoManage}
           title={t("Model settings (bring your own model)")}
-          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-[12px] transition-colors text-ink-3 hover:bg-white/[0.05] hover:text-ink-1 ml-1 pl-2 border-l border-white/[0.08]"
+          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-[12px] transition-colors text-ink-3 hover:bg-overlay/[0.05] hover:text-ink-1 ml-1 pl-2 border-l border-overlay/[0.08]"
         >
           <Cpu size={13} />
           <span className="hidden md:inline">{t("Model")}</span>
         </button>
 
         {/* 文件/浏览器开关 —— 点了才从右侧滑出 */}
-        <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-white/[0.08]">
+        <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-overlay/[0.08]">
           {RIGHT_META.map((p) => {
             const on = rightOpen && rightKind === p.kind;
             const Icon = p.icon;
@@ -143,7 +143,7 @@ export function ChatColumn({
                 title={p.label}
                 className={
                   "inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-[12px] transition-colors " +
-                  (on ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-white/[0.05] hover:text-ink-1")
+                  (on ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-overlay/[0.05] hover:text-ink-1")
                 }
               >
                 <Icon size={13} className={on ? "text-accent" : ""} />
@@ -170,7 +170,7 @@ export function ChatColumn({
           <>
             <div
               onMouseDown={onDragRatio}
-              className="w-1 shrink-0 bg-white/[0.06] hover:bg-accent/60 cursor-col-resize transition-colors"
+              className="w-1 shrink-0 bg-overlay/[0.06] hover:bg-accent/60 cursor-col-resize transition-colors"
             />
             <div className="min-w-0 min-h-0" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
               <SidePanel
@@ -206,14 +206,14 @@ function SidePanel({
   const { t } = useI18n();
   const label = kind === "files" ? t("Files") : t("Browser");
   return (
-    <div className="flex flex-col h-full min-h-0 min-w-0 border-l border-white/[0.06] bg-bg-2">
-      <div className="flex items-center gap-2 h-9 px-3 border-b border-white/[0.06] bg-bg-1 shrink-0">
+    <div className="flex flex-col h-full min-h-0 min-w-0 border-l border-overlay/[0.06] bg-bg-2">
+      <div className="flex items-center gap-2 h-9 px-3 border-b border-overlay/[0.06] bg-bg-1 shrink-0">
         <span className="text-[12px] font-medium text-ink-1">{label}</span>
         <div className="flex-1" />
         <button
           onClick={onClose}
           title={t("Collapse")}
-          className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-4 hover:text-ink-1 hover:bg-white/[0.06]"
+          className="inline-flex items-center justify-center w-7 h-7 rounded text-ink-4 hover:text-ink-1 hover:bg-overlay/[0.06]"
         >
           <X size={15} />
         </button>
