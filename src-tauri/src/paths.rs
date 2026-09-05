@@ -247,5 +247,16 @@ pub fn tool_installed(program: &str) -> bool {
             }
         }
     }
+    // 开发机或用户在 shell/profile 里额外加的目录也应如实识别。此前这里只扫我们预设的
+    // 几个目录，`where claude` 能找到却在 AI 设置中心显示「未安装」，是错误的观测结果。
+    if let Ok(path) = std::env::var("PATH") {
+        for dir in std::env::split_paths(&path) {
+            for ext in exts {
+                if dir.join(format!("{program}{ext}")).exists() {
+                    return true;
+                }
+            }
+        }
+    }
     false
 }

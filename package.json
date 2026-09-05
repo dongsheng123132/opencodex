@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "package:portable": "node scripts/package-portable.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

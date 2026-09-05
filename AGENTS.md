@@ -34,8 +34,9 @@
 - **`paths.rs` 是 PATH 注入的唯一真相源**：`search_paths()` 前置便携 Node/Python + npm 全局目录，
   让双击启动（Explorer/Finder 给的瘦 PATH）也能找到 `Codex`/`codex`。term.rs、agent、config 都复用它。
   可选便携运行时放 `~/.opencodex/runtime/{node,python}`，解压即被发现。
-- **自带模型（config.rs）**：只读写 `~/.opencodex/config.json`。OpenCodex 启动的终端和 AI 子进程会临时注入
-  ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_MODEL / ANTHROPIC_SMALL_FAST_MODEL。
+- **AI 设置中心（config.rs）**：只读写 `~/.opencodex/config.json`。只有用户主动开启可选路由时，OpenCodex 的
+  结构化 Claude Code 对话子进程才会临时注入 ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN /
+  ANTHROPIC_MODEL / ANTHROPIC_SMALL_FAST_MODEL；手动终端与其他 CLI 一律沿用其自身配置。
   不写 `~/.claude/settings.json`，不改登录态，不改系统环境变量，不静默覆盖用户在 Claude Code 里的模型、代理、Key。
   **不连任何服务器，无内置 Key**。
 - **PTY 保活**：一个会话 = 一个长驻 shell。收起面板只 hide UI 不杀进程。reader/writer 热路径

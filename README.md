@@ -6,12 +6,12 @@
 
 **English** · [简体中文](./README.zh.md)
 
-### A ~4.7 MB portable workbench for running multiple AI coding CLIs in split terminals — one folder at a time.
+### A ~5.68 MB portable workbench for running multiple AI coding CLIs in split terminals — one folder at a time.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg)](https://tauri.app)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![Size](https://img.shields.io/badge/binary-~4.7MB-brightgreen.svg)
+![Size](https://img.shields.io/badge/binary-~5.68MB-brightgreen.svg)
 
 </div>
 
@@ -29,14 +29,14 @@ OpenCodex is a Codex-style desktop workbench: pick a project folder → the main
 - **🫳 Drag to drop paths** — drag a file / image / folder into the terminal and its real path is typed into the command line (handy for showing images to Claude Code or feeding file paths).
 - **💾 Layout memory + adjustable font** — split layout restores on relaunch; font size via `Ctrl ±` or the toolbar, persisted.
 - **📑 Slide-out panels** — from the top bar, slide out a file tree or browser; resizable and dismissable.
-- **🔑 Bring-your-own-model** — enter Base URL / API Key / model in Model Settings; saved only to `~/.opencodex/config.json` and injected only into the terminals and AI child processes OpenCodex launches. It never touches your Claude Code login state, global config, or system environment variables.
-- **🪶 Portable exe** — ~4.7 MB, size-first release profile (`opt-level=z` + LTO + strip), a single executable that reuses the system WebView (no bundled Chromium).
+- **🔑 AI Setup Center** — see which local AI CLIs are detected and keep each one on its own existing configuration. Optionally set a compatible endpoint for OpenCodex's structured Claude Code chat only; it never touches terminal sessions, CLI global config, login state, or system environment variables.
+- **🪶 Portable ZIP** — ~5.68 MB exe plus an empty `portable-data/` folder, size-first release profile (`opt-level=z` + LTO + strip), reusing the system WebView (no bundled Chromium). Separate extracted folders keep their data isolated.
 
 ## Why this exists
 
 Most desktop AI-coding tools are heavy (Electron, ~200 MB) and built around human-facing workflows. There still isn't a lightweight, AI-first tool for **multi-terminal coding collaboration** the way Codex approaches it — open a folder, split into several terminals, and run multiple Claude Code / Codex sessions in parallel.
 
-OpenCodex does exactly that in ~4.7 MB (Tauri, reusing the system WebView). It takes the most underrated capability — the folder-based, AI-facing multi-terminal factory — and makes it open-source, portable, and bring-your-own-model.
+OpenCodex does exactly that in a ~5.68 MB exe (Tauri, reusing the system WebView). It takes the most underrated capability — the folder-based, AI-facing multi-terminal factory — and makes it open-source, portable, and bring-your-own-model.
 
 It's an early Demo, and it's what I use daily.
 
@@ -57,7 +57,7 @@ cargo run -- --term-test "node --version"
 ## Usage
 
 1. Launch OpenCodex.
-2. Top-right **Model Settings** → fill your Base URL / API Key / model (presets available). These settings only affect terminals and AI child processes launched by OpenCodex.
+2. Top-right **AI Setup Center** shows detected CLIs and leaves each CLI on its own configuration. Optionally enable a temporary compatible endpoint for OpenCodex's structured Claude Code chat (presets available); terminal sessions stay untouched.
 3. Run any CLI in the terminal — `claude`, `codex`, `gemini`, `aider`, `opencode`… If one isn't installed, install it right there in a terminal pane (e.g. `npm i -g @anthropic-ai/claude-code`).
 4. **New project** → pick a folder → start working. Split for more terminals; slide out files / browser when needed.
 
@@ -67,9 +67,9 @@ Two layers, no sidecar: **React (WebView) ⟷ Tauri 2 (Rust)**.
 
 ## Data locations
 
-- Session list: `~/.opencodex/tasks.json`
-- Model config: `~/.opencodex/config.json` (never writes Claude Code global settings or system environment variables)
-- Optional portable runtime: `~/.opencodex/runtime/{node,python}` (unzip here to be auto-discovered and added to PATH)
+- Portable release: `portable-data/tasks.json`, `portable-data/kv.json`, and optional `portable-data/config.json` beside the exe. Do not share a portable-data folder after you have used it.
+- Fallback without `portable-data/`: `~/.opencodex/tasks.json` and optional `~/.opencodex/config.json`.
+- Optional portable runtime: `portable-data/runtime/{node,python}` (unzip here to be auto-discovered and added to PATH)
 
 ## License
 

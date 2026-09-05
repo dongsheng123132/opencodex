@@ -94,11 +94,11 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
         </button>
         <button
           onClick={onSettings}
-          title={t("Settings")}
+          title={t("AI Setup Center")}
           className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-overlay/[0.04] hover:text-ink-1 transition-colors"
         >
           <Settings size={13} />
-          {t("Settings")}
+          {t("AI Setup Center")}
         </button>
       </div>
     </header>

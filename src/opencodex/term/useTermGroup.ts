@@ -14,14 +14,6 @@ import { invoke, Channel } from "@tauri-apps/api/core";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
-import {
-  DEFAULT_TERMINAL_THEME_SETTING,
-  parseTerminalTheme,
-  terminalTheme,
-  TERMINAL_THEME_EVENT,
-  TERMINAL_THEME_KV_KEY,
-  type TerminalThemeSetting,
-} from "./terminalTheme";
 
 // 软重置序列 —— 把终端各种「上报/屏幕」私有模式打回默认。专治 claude/codex 等 TUI 崩溃/被杀后
 // 没机会清理留下的卡死状态:鼠标坐标乱码、备用屏花屏、括号粘贴异常、光标消失、方向键错乱。
@@ -114,28 +106,6 @@ export function useTermGroup(opts: {
     requestAnimationFrame(() => {
       sessionsRef.current.find((x) => x.key === k)?.term.focus();
     });
-  }, []);
-
-  // 终端配色全局共享，但只响应「终端配色」设置；外壳主题切换不会到这里。
-  const terminalThemeRef = useRef<TerminalThemeSetting>(DEFAULT_TERMINAL_THEME_SETTING);
-  useEffect(() => {
-    let previewSeen = false;
-    const apply = (setting: TerminalThemeSetting) => {
-      terminalThemeRef.current = setting;
-      const theme = terminalTheme(setting);
-      for (const s of sessionsRef.current) s.term.options.theme = theme;
-    };
-    void invoke<string | null>("kv_get", { key: TERMINAL_THEME_KV_KEY })
-      .then((value) => {
-        if (!previewSeen) apply(parseTerminalTheme(value));
-      })
-      .catch(() => {});
-    const onTheme = (event: Event) => {
-      previewSeen = true;
-      apply((event as CustomEvent<TerminalThemeSetting>).detail);
-    };
-    window.addEventListener(TERMINAL_THEME_EVENT, onTheme);
-    return () => window.removeEventListener(TERMINAL_THEME_EVENT, onTheme);
   }, []);
 
   // 统一防抖 fit：activeKey 切换 / 容器尺寸变化 / open 切换都走这一个入口，
@@ -252,7 +222,6 @@ export function useTermGroup(opts: {
       fontSize: fontSizeRef.current,
       lineHeight: 1.2,
       cursorBlink: true,
-      theme: terminalTheme(terminalThemeRef.current),
       scrollback: 5000,
     });
     const fit = new FitAddon();

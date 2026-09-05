@@ -6,7 +6,8 @@
 //!   - 模型名 / 小模型名
 //!
 //! 只写 `~/.opencodex/config.json`，不改 Claude Code 或系统全局配置。
-//! OpenCodex 启动终端 / AI 子进程时再把这些值作为 env 临时注入。
+//! 只在用户主动开启时，OpenCodex 的结构化 Claude Code 对话子进程才临时注入这些值。
+//! 手动打开的终端始终沿用用户自己的 CLI 配置和默认环境。
 
 use std::path::PathBuf;
 
@@ -44,7 +45,7 @@ pub struct ConfigStatus {
     pub hermes_installed: bool,
     pub gemini_installed: bool,
     pub opencode_installed: bool,
-    /// 是否已配好 OpenCodex 自己的模型环境（不读取 Claude Code 全局配置）
+    /// 是否已配好 OpenCodex 结构化 Claude Code 对话的临时模型环境（不读取 Claude Code 全局配置）
     pub ready: bool,
 }
 
@@ -90,20 +91,6 @@ pub fn apply_model_env_to_command(cmd: &mut std::process::Command) {
     put("ANTHROPIC_SMALL_FAST_MODEL", &cfg.small_model);
 }
 
-pub fn apply_model_env_to_pty(builder: &mut portable_pty::CommandBuilder) {
-    let cfg = read_config();
-    let mut put = |key: &str, value: &str| {
-        let value = value.trim();
-        if !value.is_empty() {
-            builder.env(key, value);
-        }
-    };
-    put("ANTHROPIC_BASE_URL", &cfg.base_url);
-    put("ANTHROPIC_AUTH_TOKEN", &cfg.api_key);
-    put("ANTHROPIC_MODEL", &cfg.model);
-    put("ANTHROPIC_SMALL_FAST_MODEL", &cfg.small_model);
-}
-
 /// 取当前配置 + 环境体检（前端启动/进设置时调）。api_key 已脱敏。
 #[tauri::command]
 pub fn get_config() -> ConfigStatus {
@@ -132,13 +119,17 @@ pub fn get_config() -> ConfigStatus {
     }
 }
 
-/// 保存用户配置：只写本应用 config.json，不改 Claude Code 或系统全局配置。
+/// 保存用户主动开启的临时配置：只写本应用 config.json，不改 Claude Code 或系统全局配置。
 /// `api_key` 传脱敏占位（含 `…` 或全 `•`）时表示「不改 key」，沿用已存的。
 #[tauri::command]
 pub fn set_config(config: ModelConfig) -> Result<ConfigStatus, String> {
     let mut cfg = config;
     // 脱敏占位 → 保留原 key
-    if cfg.api_key.contains('…') || cfg.api_key.chars().all(|c| c == '•') {
+    // 空串是用户明确的「清空」；`"".chars().all(...)` 在 Rust 中也为 true，不能把
+    // 它误判成脱敏占位而静默保留旧 Key。
+    let masked_key = !cfg.api_key.is_empty()
+        && (cfg.api_key.contains('…') || cfg.api_key.chars().all(|c| c == '•'));
+    if masked_key {
         cfg.api_key = read_config().api_key;
     }
 

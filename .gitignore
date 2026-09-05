@@ -5,6 +5,7 @@ node_modules/
 # build output
 dist/
 src-tauri/target/
+release/
 
 # editor / os
 .DS_Store

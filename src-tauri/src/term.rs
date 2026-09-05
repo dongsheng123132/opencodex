@@ -23,7 +23,6 @@ use std::os::windows::process::CommandExt; // taskkill 用 creation_flags 隐藏
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use tauri::ipc::Channel;
 
-use crate::config;
 use crate::paths::path_prefix;
 use crate::proxy;
 
@@ -174,7 +173,6 @@ pub fn headless_run(cmd: &str, timeout_ms: u64) -> Result<String, String> {
     let mut builder = shell_builder();
     builder.env("PATH", build_path());
     builder.env("TERM", "xterm-256color");
-    config::apply_model_env_to_pty(&mut builder);
     proxy::apply_to_pty(&mut builder);
     inject_openclaw_env(&mut builder);
     builder.cwd(home_dir());
@@ -398,7 +396,6 @@ pub async fn term_open(
     let mut builder = shell_builder();
     builder.env("PATH", build_path());
     builder.env("TERM", "xterm-256color");
-    config::apply_model_env_to_pty(&mut builder);
     proxy::apply_to_pty(&mut builder);
     inject_openclaw_env(&mut builder);
     builder.cwd(resolve_cwd(cwd));

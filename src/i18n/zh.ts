@@ -5,8 +5,17 @@
 
 export const ZH: Record<string, string> = {
   // —— 顶栏 / App ——
-  "Model Settings": "模型设置",
-  "Settings": "设置",
+  "Model Settings": "AI 设置中心",
+  "Settings": "AI 设置中心",
+  "AI Setup Center": "AI 设置中心",
+  "Your CLI stays in charge": "CLI 保持自己的配置",
+  "OpenCodex only detects these tools. Unless you explicitly enable the optional Claude Code route below, every CLI uses its own existing default configuration. OpenCodex never writes Claude, Codex, Hermes, Gemini, OpenCode, or system settings.": "OpenCodex 只检测这些工具。除非你主动开启下方可选的 Claude Code 临时路由，每个 CLI 都沿用它原有的默认配置。OpenCodex 不会写入 Claude、Codex、Hermes、Gemini、OpenCode 或系统设置。",
+  "Detected AI CLIs": "已检测的 AI CLI",
+  "Detected · uses its own config": "已检测 · 沿用自身配置",
+  "Checking installed CLIs…": "正在检测已安装的 CLI…",
+  "Optional Claude Code route": "可选的 Claude Code 临时路由",
+  "Use this only when you want OpenCodex's structured Claude Code chat to use your own compatible endpoint. It is temporary for that chat process only; terminals and every other CLI remain untouched.": "仅当你希望 OpenCodex 的结构化 Claude Code 对话使用自己的兼容端点时才开启。它只临时作用于该对话进程；终端和其他所有 CLI 都不会被改动。",
+  "Enable a temporary route for OpenCodex Claude Code chat": "为 OpenCodex 的 Claude Code 对话启用临时路由",
   "AI model": "AI 模型",
   "Appearance": "外观",
   "System": "跟随系统",
@@ -107,8 +116,8 @@ export const ZH: Record<string, string> = {
   "Model": "模型",
   "Collapse": "收起",
 
-  // —— 模型设置（SettingsDialog）——
-  "Model Settings · Bring Your Own Model": "模型设置 · 自带模型",
+  // —— AI 设置中心（SettingsDialog）——
+  "Model Settings · Bring Your Own Model": "AI 设置中心 · 自带模型",
   "Please enter a Base URL": "请输入 Base URL",
   "Saved — sessions will use your model": "已保存 —— 会话将使用你的模型",
   "Settings saved": "设置已保存",

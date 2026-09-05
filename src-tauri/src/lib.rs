@@ -26,6 +26,7 @@ mod paths;
 mod proxy;
 mod quick;
 mod tasks;
+mod webview2;
 mod term;
 
 use serde::Serialize;
@@ -212,6 +213,13 @@ pub fn run() {
     if args.iter().any(|a| a == "--term-kill-test") {
         println!("{}", term::headless_kill_test());
         std::process::exit(0);
+    }
+
+    // 绿色版不带 NSIS 安装器，不能依赖 installer 的 WebView2 bootstrapper。必须在
+    // Builder 创建窗口前用原生窗口处理，否则缺运行库时会留下「进程还在、界面没了」的空壳。
+    #[cfg(windows)]
+    if !matches!(webview2::ensure(), webview2::Outcome::Ready | webview2::Outcome::Installed) {
+        return;
     }
 
     tauri::Builder::default()

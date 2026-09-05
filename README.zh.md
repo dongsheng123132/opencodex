@@ -6,7 +6,7 @@
 
 OpenCodex 是一个 Codex 同款体验的桌面工作台：选一个项目文件夹 → 主区直接是**应用内真终端**，跑 Claude Code / Codex 等 CLI → 随手左右/上下分屏多开 → 需要时从顶栏滑出文件树、浏览器。常驻保活，切会话不杀终端进程。
 
-完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。你填自己的 Base URL + API Key（DeepSeek / 智谱 / Kimi / Anthropic 官方 / 本地 ollama / 任意 OpenAI·Anthropic 兼容端点都行）。
+完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。各 CLI 默认沿用自己的配置；需要时可只为 OpenCodex 的结构化 Claude Code 对话填写自己的 Anthropic 兼容端点与 Key。
 
 ![OpenCodex 主界面 —— 一个文件夹里 2×2 分屏开多个终端](docs/screenshot-main.png)
 
@@ -33,7 +33,7 @@ Codex 这类工具，可以说是 AI 发展史上的第一辆「自动挡汽车�
 
 - **核心能力**：基于文件夹实现高效的多任务、多终端管理，做到了很高的完成度。
 - **协作模式**：在一个文件夹下打开多个终端，同时跑多个 Claude Code 等工具做**多进程编程**，体验非常顺畅。
-- **轻量化方案**：针对 Codex 不开源、体积重的问题，做了这个**约 4.7MB 的绿色版**（Tauri，复用系统 WebView，不打包浏览器内核），更贴合实际开发场景。
+- **轻量化方案**：针对 Codex 不开源、体积重的问题，做了这个**约 5.68MB 的绿色 ZIP**（Tauri，复用系统 WebView，不打包浏览器内核），更贴合实际开发场景。
 
 一句话：把 Codex「面向 AI 的多终端工厂」这一最核心、最被低估的能力，做成一个开源、绿色、自带模型的轻量工具 —— 自己用得哇哇叫，索性开源出来。
 
@@ -51,8 +51,8 @@ Codex 这类工具，可以说是 AI 发展史上的第一辆「自动挡汽车�
 - **拖放落路径**：把文件 / 图片 / 文件夹拖进终端 → 真实路径自动填进命令行（贴图给 Claude Code 看、喂文件路径都顺手）。
 - **布局记忆 + 字号可调**：分屏排布关 App 重开自动恢复；字号 `Ctrl ±` / 标签栏按钮实时调，存盘统一。
 - **滑出式面板**：顶栏点一下，从右侧滑出文件树 / 浏览器，可拖宽、可收起。
-- **自带模型**：「模型设置」里填 Base URL / API Key / 模型名，只保存到 `~/.opencodex/config.json`，并仅临时注入 OpenCodex 启动的终端与 AI 子进程；不修改 Claude Code 登录态、全局配置或系统环境变量。
-- **绿色 exe**：约 4.7MB，体积优先的 release profile（`opt-level=z` + LTO + strip），单文件可执行，复用系统 WebView 不打包浏览器内核。
+- **AI 设置中心**：先展示本机检测到的 AI CLI，每个 CLI 默认沿用自身配置。可选为 OpenCodex 的结构化 Claude Code 对话填写兼容端点；不修改终端、Claude Code 登录态、CLI 全局配置或系统环境变量。
+- **绿色 ZIP**：约 5.68MB 的 exe 加空白 `portable-data/`，体积优先的 release profile（`opt-level=z` + LTO + strip），复用系统 WebView 不打包浏览器内核；解压到不同文件夹即可隔离数据。
 
 ## 技术栈
 
@@ -76,15 +76,15 @@ cargo run -- --term-test "node --version"
 ## 使用
 
 1. 启动 OpenCodex。
-2. 右上角「模型设置」→ 填你的 Base URL / API Key / 模型名（可点预设快速填充）。这些设置仅作用于 OpenCodex 启动的终端与 AI 子进程。
+2. 右上角「AI 设置中心」会显示已检测的 CLI，并保持各 CLI 自己的配置。若需要，可为 OpenCodex 的结构化 Claude Code 对话启用临时兼容端点（可点预设快速填充）；终端不受影响。
 3. 终端里就能跑 `claude` / `codex` / `gemini` / `aider` / `opencode` 等 CLI —— 没装的话在终端面板里装一下（如 `npm i -g @anthropic-ai/claude-code`）。
 4. 「新建项目」选一个文件夹 → 开干。需要时从顶栏开终端 / 文件 / 浏览器。
 
 ## 数据位置
 
-- 会话列表：`~/.opencodex/tasks.json`
-- 模型配置：`~/.opencodex/config.json`（不会写入 Claude Code 全局配置或系统环境变量）
-- 可选便携运行时：`~/.opencodex/runtime/{node,python}`（解压到此即被自动发现并加入 PATH）
+- 绿色版：exe 同级 `portable-data/tasks.json`、`portable-data/kv.json` 和可选 `portable-data/config.json`。使用过的 `portable-data` 含个人数据，不要再次打包或分享。
+- 没有 `portable-data/` 时：`~/.opencodex/tasks.json` 和可选 `~/.opencodex/config.json`。
+- 可选便携运行时：`portable-data/runtime/{node,python}`（解压到此即被自动发现并加入 PATH）
 
 ## 协议
 
