@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X, Save, KeyRound } from "lucide-react";
+import { Download, Info, KeyRound, Save, X } from "lucide-react";
 import { useI18n } from "../i18n";
 
 type ModelConfig = {
@@ -61,14 +61,17 @@ const PRESETS: { name: string; base_url: string; model: string; small_model: str
 export function SettingsDialog({
   onToast,
   onClose,
+  onTasksImported,
 }: {
   onToast: (s: string) => void;
   onClose: () => void;
+  onTasksImported: () => void;
 }) {
   const { t } = useI18n();
   const [status, setStatus] = useState<ConfigStatus | null>(null);
   const [form, setForm] = useState<ModelConfig>({ base_url: "", api_key: "", model: "", small_model: "" });
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     invoke<ConfigStatus>("get_config")
@@ -101,6 +104,26 @@ export function SettingsDialog({
     }
   };
 
+  const importFromUking = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>("import_uking_tasks");
+      if (!r.source_exists) {
+        onToast(t("No U-King workspace data found (~/.uking/tasks.json)"));
+      } else if (r.imported > 0) {
+        onToast(t("Imported {n} project session(s) from U-King ({s} already present)", { n: r.imported, s: r.skipped }));
+        onTasksImported();
+      } else {
+        onToast(t("Nothing to import — all {n} U-King project(s) already here", { n: r.skipped }));
+      }
+    } catch (e) {
+      onToast(t("Import failed: {e}", { e: String(e) }));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
@@ -110,7 +133,7 @@ export function SettingsDialog({
         <header className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <KeyRound size={16} className="text-accent" />
-            <h2 className="text-[15px] font-semibold text-ink-0">{t("Model Settings · Bring Your Own Model")}</h2>
+            <h2 className="text-[15px] font-semibold text-ink-0">{t("Settings")}</h2>
           </div>
           <button onClick={onClose} className="text-ink-4 hover:text-ink-1">
             <X size={18} />
@@ -118,6 +141,7 @@ export function SettingsDialog({
         </header>
 
         <div className="px-5 py-4 space-y-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("AI model")}</div>
           {status && !status.claude_installed && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2.5 text-[12px] text-ink-1 leading-relaxed">
               ⚠ The <b>claude</b> command was not found. Sessions require the Claude Code CLI:
@@ -172,6 +196,26 @@ export function SettingsDialog({
           <div className="text-[11px] text-ink-4 leading-relaxed">
             {t("Saved only to ~/.opencodex/config.json, and applied only to terminals and AI subprocesses launched by OpenCodex.")}
           </div>
+
+          <section className="pt-4 border-t border-white/[0.06] space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("Data & migration")}</div>
+            <button
+              onClick={() => void importFromUking()}
+              disabled={importing}
+              className="inline-flex items-center gap-2 h-8 px-3 rounded-md border border-white/[0.10] text-ink-2 text-[12px] hover:bg-white/[0.04] hover:text-ink-0 disabled:opacity-40"
+            >
+              <Download size={13} />
+              {importing ? t("Importing…") : t("Import U-King")}
+            </button>
+            <div className="text-[11px] text-ink-4">{t("Import projects & sessions from U-King workspace (~/.uking/tasks.json)")}</div>
+          </section>
+
+          <section className="pt-4 border-t border-white/[0.06] space-y-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-4">
+              <Info size={12} /> {t("About")}
+            </div>
+            <div className="text-[12px] text-ink-2">OpenCodex v{__APP_VERSION__}</div>
+          </section>
         </div>
 
         <footer className="flex items-center justify-end gap-2 px-5 py-4 border-t border-white/[0.06]">

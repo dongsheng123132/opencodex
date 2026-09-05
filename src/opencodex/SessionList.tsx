@@ -1,10 +1,10 @@
 /**
  * 左侧列表 —— 按项目（文件夹）分组，每个项目下列多个 AI 会话（claude/codex/openclaw…）。
- * 顶部 RunPanel（我的 AI 运行面板）；底部「插件 / 自动化」占位。
+ * 顶部 RunPanel（我的 AI 运行面板）；底部只显示正在运行的终端状态。
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Puzzle, Trash2, X } from "lucide-react";
+import { Activity, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -45,36 +45,11 @@ const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "aider", name: "Aider", cmd: "aider" },
 ];
 
-export function SessionList({ onToast }: { onToast?: (s: string) => void } = {}) {
+export function SessionList() {
   const { t: tr } = useI18n();
-  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, reloadTasks, renameTask, activate } =
+  const { state, addTask, addSession, addWorktree, removeTask, removeProject, reorderTasks, renameTask, activate } =
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
-
-  // 从 U-King 工作台导入会话（~/.uking/tasks.json → ~/.opencodex/tasks.json，按目录去重合并）。
-  // 场景：用户同时在用 U-King 和 OpenCodex，U-King 左侧攒下的项目/会话想在新工作台接着用。
-  const [importing, setImporting] = useState(false);
-  const importFromUking = async () => {
-    if (importing) return;
-    setImporting(true);
-    try {
-      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>(
-        "import_uking_tasks",
-      );
-      if (!r.source_exists) {
-        onToast?.(tr("No U-King workspace data found (~/.uking/tasks.json)"));
-      } else if (r.imported > 0) {
-        onToast?.(tr("Imported {n} project session(s) from U-King ({s} already present)", { n: r.imported, s: r.skipped }));
-        reloadTasks(); // 后端已合并，重拉列表
-      } else {
-        onToast?.(tr("Nothing to import — all {n} U-King project(s) already here", { n: r.skipped }));
-      }
-    } catch (e) {
-      onToast?.(tr("Import failed: {e}", { e: String(e) }));
-    } finally {
-      setImporting(false);
-    }
-  };
 
   // 正在重命名的会话 id + 输入框内容（对齐 U-King 测试报告 #016）。双击名字进入，
   // 回车/失焦保存，Esc 取消。
@@ -654,26 +629,10 @@ export function SessionList({ onToast }: { onToast?: (s: string) => void } = {})
         )}
       </div>
 
-      {/* 底部：品牌 + 版本号 */}
-      <div className="px-3 py-2 border-t border-white/[0.06] shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[11px] text-ink-5">
-          <Puzzle size={12} />
-          {tr("Plugins (coming soon)")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => void importFromUking()}
-            disabled={importing}
-            title={tr("Import projects & sessions from U-King workspace (~/.uking/tasks.json)")}
-            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-ink-5 hover:text-ink-2 hover:bg-white/[0.05] disabled:opacity-40"
-          >
-            <Download size={11} />
-            {importing ? tr("Importing…") : tr("Import U-King")}
-          </button>
-          <span className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]" title={tr("OpenCodex version")}>
-            v{__APP_VERSION__}
-          </span>
-        </div>
+      {/* 底部只放实时状态；迁移、版本和低频配置统一进右上角设置。 */}
+      <div className="px-3 py-2 border-t border-white/[0.06] shrink-0 flex items-center gap-2 text-[11px] text-ink-5">
+        <Activity size={12} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
+        {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
       </div>
 
       {/* 右边缘拖拽条：拖动调宽，双击收起。骑在右边框上（往右探出一半便于抓取） */}

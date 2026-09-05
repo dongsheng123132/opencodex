@@ -22,6 +22,7 @@ export function App() {
   const [env, setEnv] = useState<AppEnv | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [tasksRevision, setTasksRevision] = useState(0);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -42,11 +43,16 @@ export function App() {
           homeDir={env?.home_dir ?? null}
           onToast={flash}
           onGoManage={() => setShowSettings(true)}
+          tasksRevision={tasksRevision}
         />
       </main>
 
       {showSettings && (
-        <SettingsDialog onToast={flash} onClose={() => setShowSettings(false)} />
+        <SettingsDialog
+          onToast={flash}
+          onClose={() => setShowSettings(false)}
+          onTasksImported={() => setTasksRevision((revision) => revision + 1)}
+        />
       )}
 
       {toast && (
@@ -87,11 +93,11 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
         </button>
         <button
           onClick={onSettings}
-          title={t("Model Settings")}
+          title={t("Settings")}
           className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
         >
           <Settings size={13} />
-          {t("Model Settings")}
+          {t("Settings")}
         </button>
       </div>
     </header>

@@ -6,6 +6,11 @@
 export const ZH: Record<string, string> = {
   // —— 顶栏 / App ——
   "Model Settings": "模型设置",
+  "Settings": "设置",
+  "AI model": "AI 模型",
+  "Data & migration": "数据与迁移",
+  "About": "关于",
+  "{n} terminal(s) running": "{n} 个终端正在运行",
   "OpenCodex": "OpenCodex",
   "Run in terminal: {cmd}": "在终端中运行: {cmd}",
 
